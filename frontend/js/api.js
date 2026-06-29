@@ -90,10 +90,48 @@ const ICON_SVG = {
   upload: svgIcon('<path d="M12 16V4"/><path d="m8 8 4-4 4 4"/><path d="M4 20h16"/>'),
   folder: svgIcon('<path d="M3 7a2 2 0 0 1 2-2h5l2 2h9a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>'),
   bank: svgIcon('<path d="M4 10h16"/><path d="M6 10V7l6-3 6 3v3"/><path d="M5 20h14"/><path d="M7 20v-7"/><path d="M12 20v-7"/><path d="M17 20v-7"/>'),
-  cube: svgIcon('<path d="M12 2 4 6v12l8 4 8-4V6z"/><path d="M12 2v8l8-4"/><path d="M4 6l8 4 8-4"/>')
+  cube: svgIcon('<path d="M12 2 4 6v12l8 4 8-4V6z"/><path d="M12 2v8l8-4"/><path d="M4 6l8 4 8-4"/>'),
+  calculator: svgIcon('<rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="16" y1="14" x2="16" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/>'),
+  message: svgIcon('<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>')
+};
+
+const LUCIDE_MAP = {
+  chartColumn: 'layout-dashboard',
+  users: 'users',
+  clipboardList: 'clipboard-list',
+  briefcase: 'briefcase',
+  fileLines: 'file-text',
+  chartLine: 'line-chart',
+  search: 'search',
+  clock: 'clock',
+  user: 'user',
+  info: 'info',
+  envelope: 'mail',
+  lock: 'lock',
+  arrowLeft: 'arrow-left',
+  plus: 'plus',
+  checkCircle: 'check-circle',
+  xCircle: 'x-circle',
+  download: 'download',
+  rotateLeft: 'rotate-ccw',
+  logout: 'log-out',
+  bars: 'menu',
+  hourglass: 'hourglass',
+  eye: 'eye',
+  eyeOff: 'eye-off',
+  upload: 'upload',
+  folder: 'folder',
+  bank: 'landmark',
+  cube: 'box',
+  calculator: 'calculator',
+  message: 'message-square'
 };
 
 function iconMarkup(name) {
+  if (window.lucide) {
+    const lucideName = LUCIDE_MAP[name] || name;
+    return `<i data-lucide="${lucideName}"></i>`;
+  }
   return ICON_SVG[name] || ICON_SVG.chartColumn;
 }
 
@@ -130,7 +168,9 @@ const ICON_TEXT_MAP = new Map([
   ['a', 'checkCircle'],
   ['c', 'users'],
   ['search', 'search'],
-  ['cln', 'bank']
+  ['cln', 'bank'],
+  ['🧮', 'calculator'],
+  ['💬', 'message']
 ]);
 
 function resolveIconName(el) {
@@ -139,7 +179,9 @@ function resolveIconName(el) {
 
   if (el.classList.contains('logo-icon')) return 'bank';
   if (el.classList.contains('search-icon')) return 'search';
-  if (el.classList.contains('toggle-password')) return el.classList.contains('visible') ? 'eyeOff' : 'eye';
+  // Check if the element itself or its parent is the toggle-password button
+  const toggleBtn = el.classList.contains('toggle-password') ? el : el.closest('.toggle-password');
+  if (toggleBtn) return toggleBtn.classList.contains('visible') ? 'eyeOff' : 'eye';
 
   if (ICON_TEXT_MAP.has(rawText)) return ICON_TEXT_MAP.get(rawText);
   if (ICON_TEXT_MAP.has(normalized)) return ICON_TEXT_MAP.get(normalized);
@@ -154,16 +196,33 @@ function resolveIconName(el) {
 }
 
 function applyIconography(root = document) {
+  if (window.lucide) {
+    try {
+      window.lucide.createIcons();
+    } catch (err) {
+      console.error('Lucide error:', err);
+    }
+  }
+
   const selector = '.emoji, .emoji-sm, .nav-icon, .stat-icon, .search-icon, .upload-icon, .empty-icon, .logo-icon, .toggle-password .eye-icon';
   const elements = root.querySelectorAll ? root.querySelectorAll(selector) : [];
 
   elements.forEach((el) => {
-    if (el.querySelector('svg')) return;
+    if (el.querySelector('svg') || el.querySelector('i[data-lucide]')) return;
+    // Skip .toggle-password buttons that already have SVG rendered directly inside them
+    const parentToggle = el.closest ? el.closest('.toggle-password') : null;
+    if (parentToggle && parentToggle.querySelector('svg')) return;
     const iconName = resolveIconName(el);
     if (!iconName) return;
     el.innerHTML = iconMarkup(iconName);
     el.dataset.iconized = iconName;
   });
+
+  if (window.lucide) {
+    try {
+      window.lucide.createIcons();
+    } catch (err) {}
+  }
 }
 
 function applyActionButtonIcons(root = document) {
@@ -180,6 +239,12 @@ function applyActionButtonIcons(root = document) {
     }
     button.dataset.iconized = 'true';
   });
+
+  if (window.lucide && buttons.length > 0) {
+    try {
+      window.lucide.createIcons();
+    } catch (err) {}
+  }
 }
 
 const THREE_CDN_URL = 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js';
@@ -632,12 +697,19 @@ function startIconObserver() {
   iconObserverStarted = true;
 
   const observer = new MutationObserver((mutations) => {
+    let ranLucide = false;
     for (const mutation of mutations) {
       for (const node of mutation.addedNodes) {
         if (!(node instanceof Element)) continue;
         applyIconography(node);
         applyActionButtonIcons(node);
+        if (window.lucide) ranLucide = true;
       }
+    }
+    if (ranLucide) {
+      try {
+        window.lucide.createIcons();
+      } catch (err) {}
     }
   });
 
@@ -747,6 +819,16 @@ async function apiRequest(method, path, body = null, isFormData = false) {
       return;
     }
 
+    if (res.status === 403) {
+      const user = getUser();
+      if (user && user.role === 'employee') {
+        clearSession();
+        localStorage.setItem('login_error', data?.message || 'Access denied. Account is inactive or outside working hours.');
+        window.location.href = '/index.html';
+        return;
+      }
+    }
+
     return { ok: res.ok, status: res.status, data };
   } catch (err) {
     return { ok: false, data: { message: 'Network error. Is the server running?' } };
@@ -756,6 +838,7 @@ async function apiRequest(method, path, body = null, isFormData = false) {
 const api = {
   get:    (path)         => apiRequest('GET',    path),
   post:   (path, body)   => apiRequest('POST',   path, body),
+  put:    (path, body)   => apiRequest('PUT',    path, body),
   patch:  (path, body)   => apiRequest('PATCH',  path, body),
   delete: (path)         => apiRequest('DELETE', path),
   upload: (path, form)   => apiRequest('POST',   path, form, true),
@@ -782,16 +865,92 @@ function requireRole(role) {
 function renderSidebarUser() {
   const user = getUser();
   if (!user) return;
-  const nameEl = document.getElementById('sidebar-user-name');
-  const roleEl = document.getElementById('sidebar-user-role');
+  const nameEl   = document.getElementById('sidebar-user-name');
+  const roleEl   = document.getElementById('sidebar-user-role');
   const avatarEl = document.getElementById('sidebar-user-avatar');
   if (nameEl) nameEl.textContent = user.name;
-  if (roleEl) roleEl.textContent = user.role;
-  if (avatarEl) avatarEl.textContent = user.name.charAt(0).toUpperCase();
+  if (roleEl) roleEl.textContent = user.role === 'admin' ? 'Administrator' : user.role;
+
+  if (avatarEl) {
+    const pic = user.profile_picture;
+    if (pic) {
+      avatarEl.style.backgroundImage = `url('${pic}')`;
+      avatarEl.style.backgroundSize  = 'cover';
+      avatarEl.style.backgroundPosition = 'center';
+      avatarEl.textContent = '';
+    } else {
+      avatarEl.style.backgroundImage = '';
+      avatarEl.textContent = user.name.charAt(0).toUpperCase();
+    }
+  }
+
+  // Make user-info block clickable → profile page
+  const userInfoEl = document.querySelector('.user-info');
+  if (userInfoEl && !userInfoEl.dataset.profileLinked) {
+    userInfoEl.dataset.profileLinked = '1';
+    userInfoEl.style.cursor = 'pointer';
+    userInfoEl.title = 'View Profile';
+    userInfoEl.addEventListener('click', () => {
+      const role = user.role;
+      window.location.href = role === 'admin' ? '/admin/profile.html' : '/employee/profile.html';
+    });
+  }
+
+  // Note: profile picture is read from the cached cln_user object in localStorage.
+  // Call refreshSidebarAvatar() from profile pages after uploading a new avatar.
+}
+
+// ── Refresh sidebar avatar from localStorage cache ────────────
+function refreshSidebarAvatar(profilePicUrl) {
+  const avatarEl = document.getElementById('sidebar-user-avatar');
+  if (!avatarEl) return;
+  if (profilePicUrl) {
+    avatarEl.style.backgroundImage = `url('${profilePicUrl}')`;
+    avatarEl.style.backgroundSize  = 'cover';
+    avatarEl.style.backgroundPosition = 'center';
+    avatarEl.textContent = '';
+  } else {
+    avatarEl.style.backgroundImage = '';
+    const user = getUser();
+    avatarEl.textContent = user ? user.name.charAt(0).toUpperCase() : '?';
+  }
+  // Persist to localStorage cln_user
+  const user = getUser();
+  if (user) {
+    user.profile_picture = profilePicUrl || null;
+    localStorage.setItem('cln_user', JSON.stringify(user));
+  }
+}
+
+// ── FormData POST helper (uses correct cln_token key) ─────────
+async function apiPostForm(endpoint, formData) {
+  try {
+    const token = getToken();
+    const resp = await fetch(`${API_BASE}${endpoint}`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (resp.status === 401) { clearSession(); window.location.href = '/index.html'; return; }
+    if (resp.status === 403) {
+      const user = getUser();
+      if (user && user.role === 'employee') {
+        clearSession();
+        localStorage.setItem('login_error', data?.message || 'Access denied. Account is inactive or outside working hours.');
+        window.location.href = '/index.html';
+        return;
+      }
+    }
+    return { ok: resp.ok, status: resp.status, data };
+  } catch (err) { return { ok: false, data: { message: err.message } }; }
 }
 
 // ── Logout ────────────────────────────────────────────────────
-function logout() {
+async function logout() {
+  try {
+    await api.post('/auth/logout');
+  } catch (err) {}
   clearSession();
   window.location.href = '/index.html';
 }
@@ -860,8 +1019,13 @@ function formatTime(date) {
 function statusBadge(status) {
   const cls = {
     Pending: 'badge-pending',
+    'Under Review': 'badge-under-review',
+    'Documents Pending': 'badge-documents-pending',
     Approved: 'badge-approved',
+    'Loan Disbursed': 'badge-loan-disbursed',
+    Cancelled: 'badge-cancelled',
     Rejected: 'badge-rejected',
+    Hold: 'badge-hold',
     ABND: 'badge-abnd',
     Other: 'badge-other'
   };

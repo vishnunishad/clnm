@@ -10,6 +10,203 @@
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
   <link rel="stylesheet" href="/css/styles.css" />
+  <style>
+    /* ── Update Status Side Drawer ───────────────────────── */
+    .status-drawer-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      z-index: 1100;
+      backdrop-filter: blur(2px);
+    }
+    .status-drawer-overlay.show { display: flex; align-items: stretch; justify-content: flex-end; }
+
+    .status-drawer {
+      width: 520px;
+      max-width: 100vw;
+      background: var(--surface);
+      display: flex;
+      flex-direction: column;
+      box-shadow: -8px 0 40px rgba(0,0,0,0.35);
+      animation: slideInRight 0.28s ease;
+      overflow: hidden;
+    }
+    @keyframes slideInRight {
+      from { transform: translateX(100%); opacity: 0; }
+      to   { transform: translateX(0);    opacity: 1; }
+    }
+
+    .drawer-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark, #081e3f) 100%);
+      flex-shrink: 0;
+    }
+    .drawer-header h3 { color: #fff; font-size: 16px; margin: 0; }
+    .drawer-header .drawer-subtitle { color: rgba(255,255,255,0.72); font-size: 13px; margin-top: 2px; }
+    .drawer-close {
+      background: rgba(255,255,255,0.15);
+      border: none;
+      color: #fff;
+      border-radius: 8px;
+      width: 32px; height: 32px;
+      cursor: pointer;
+      font-size: 16px;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.2s;
+    }
+    .drawer-close:hover { background: rgba(255,255,255,0.28); }
+
+    .drawer-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .drawer-section-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+      margin-bottom: 2px;
+    }
+
+    .date-fields-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .date-fields-grid .form-group { margin-bottom: 0; }
+
+    .history-timeline {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+    .history-item {
+      display: flex;
+      gap: 12px;
+      position: relative;
+      padding-bottom: 16px;
+    }
+    .history-item:last-child { padding-bottom: 0; }
+    .history-item:not(:last-child)::before {
+      content: '';
+      position: absolute;
+      left: 11px;
+      top: 22px;
+      bottom: 0;
+      width: 2px;
+      background: var(--border);
+    }
+    .history-dot {
+      width: 24px; height: 24px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+      flex-shrink: 0;
+      position: relative;
+      z-index: 1;
+    }
+    .history-content { flex: 1; min-width: 0; }
+    .history-status-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .history-status-name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+    .history-date { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .history-notes { font-size: 12px; color: var(--text-secondary); margin-top: 4px; font-style: italic; }
+    .no-history { font-size: 13px; color: var(--text-muted); text-align: center; padding: 20px 0; }
+
+    .drawer-footer {
+      padding: 16px 24px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      flex-shrink: 0;
+      background: var(--surface);
+    }
+
+    .dot-pending    { background: rgba(245,158,11,0.18); color: #d97706; border: 2px solid #d97706; }
+    .dot-approved   { background: rgba(16,185,129,0.18); color: #059669; border: 2px solid #059669; }
+    .dot-rejected   { background: rgba(239,68,68,0.18);  color: #dc2626; border: 2px solid #dc2626; }
+    .dot-disbursed  { background: rgba(99,102,241,0.18); color: #6366f1; border: 2px solid #6366f1; }
+    .dot-review     { background: rgba(59,130,246,0.18); color: #3b82f6; border: 2px solid #3b82f6; }
+    .dot-docs       { background: rgba(249,115,22,0.18); color: #ea580c; border: 2px solid #ea580c; }
+    .dot-cancelled  { background: rgba(107,114,128,0.18);color: #6b7280; border: 2px solid #6b7280; }
+    .dot-hold       { background: rgba(234,179,8,0.18);  color: #ca8a04; border: 2px solid #ca8a04; }
+    .dot-abnd       { background: rgba(239,68,68,0.12);  color: #b91c1c; border: 2px solid #b91c1c; }
+    .dot-other      { background: rgba(99,102,241,0.12); color: #7c3aed; border: 2px solid #7c3aed; }
+
+    @media (max-width: 560px) {
+      .status-drawer { width: 100vw; }
+      .date-fields-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ── Textarea inside drawer ───────────────────────── */
+    .status-drawer textarea.form-control {
+      display: block;
+      width: 100%;
+      min-height: 160px;
+      height: auto;
+      resize: vertical;
+      line-height: 1.5;
+      font-family: inherit;
+      font-size: 14px;
+      padding: 12px 14px;
+      box-sizing: border-box;
+    }
+
+    /* Ensure each drawer section is block and never collapses */
+    .drawer-body > div {
+      display: block;
+      width: 100%;
+    }
+
+    /* ── Clickable Statistics Cards ───────────────────────── */
+    .clickable-card {
+      cursor: pointer;
+      position: relative;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      overflow: hidden;
+    }
+    .clickable-card::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: transparent;
+      transition: background-color 0.25s ease;
+    }
+    .clickable-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-medium);
+    }
+    .clickable-card.active {
+      border-color: var(--primary);
+      background: var(--bg-card-hover);
+      box-shadow: var(--shadow-medium);
+    }
+    .clickable-card.active::after {
+      background-color: var(--primary);
+    }
+    .clickable-card[data-status="Pending"].active::after { background-color: var(--warning); }
+    .clickable-card[data-status="Approved"].active::after { background-color: var(--success); }
+    .clickable-card[data-status="Rejected"].active::after { background-color: var(--danger); }
+    .clickable-card[data-status="Loan Disbursed"].active::after { background-color: #6366f1; }
+    .clickable-card[data-status="Hold"].active::after { background-color: #ca8a04; }
+    .clickable-card[data-status="ABND"].active::after { background-color: #b91c1c; }
+    .clickable-card[data-status="Other"].active::after { background-color: #7c3aed; }
+  </style>
 </head>
 <body>
 <div class="app-layout">
@@ -27,6 +224,11 @@
         <a href="/admin/employees.html" class="nav-item"><span class="nav-icon emoji-sm">👥</span> Employees</a>
         <a href="/admin/customers.html" class="nav-item"><span class="nav-icon emoji-sm">📋</span> Customers</a>
         <a href="/admin/loans.html" class="nav-item active"><span class="nav-icon emoji-sm">💼</span> Loan Applications</a>
+        <a href="/admin/emi-calculator.html" class="nav-item"><span class="nav-icon emoji-sm">🧮</span> EMI Calculator</a>
+
+        <a href="/admin/data-excel.html" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/></svg></span> Data Excel Document</a>
+        <a href="/admin/apr.html" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span> APR</a>
+
       </div>
     </nav>
     <div class="sidebar-footer">
@@ -51,12 +253,41 @@
     </div>
 
     <div class="page-content">
+      <div id="page-alert" class="alert"></div>
       <!-- Summary row -->
-      <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px;">
-        <div class="stat-card"><div class="stat-value" id="s-total">—</div><div class="stat-label"><span class="emoji-sm">📄</span>Total</div></div>
-        <div class="stat-card"><div class="stat-value" id="s-pending" style="color:var(--warning)">—</div><div class="stat-label"><span class="emoji-sm">⏳</span>Pending</div></div>
-        <div class="stat-card"><div class="stat-value" id="s-approved" style="color:var(--success)">—</div><div class="stat-label"><span class="emoji-sm">✅</span>Approved</div></div>
-        <div class="stat-card"><div class="stat-value" id="s-rejected" style="color:var(--danger)">—</div><div class="stat-label"><span class="emoji-sm">❌</span>Rejected</div></div>
+      <div class="stats-grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-bottom: 20px;">
+        <div class="stat-card clickable-card" data-status="all" onclick="filterByCardStatus('')">
+          <div class="stat-value" id="s-total">—</div>
+          <div class="stat-label"><i data-lucide="file-text" class="emoji-sm" style="margin-right:4px; vertical-align: middle;"></i>Total</div>
+        </div>
+        <div class="stat-card clickable-card" data-status="Pending" onclick="filterByCardStatus('Pending')">
+          <div class="stat-value" id="s-pending" style="color:var(--warning)">—</div>
+          <div class="stat-label"><i data-lucide="hourglass" class="emoji-sm" style="margin-right:4px; vertical-align: middle;"></i>Pending</div>
+        </div>
+        <div class="stat-card clickable-card" data-status="Approved" onclick="filterByCardStatus('Approved')">
+          <div class="stat-value" id="s-approved" style="color:var(--success)">—</div>
+          <div class="stat-label"><i data-lucide="check-circle" class="emoji-sm" style="margin-right:4px; vertical-align: middle;"></i>Approved</div>
+        </div>
+        <div class="stat-card clickable-card" data-status="Rejected" onclick="filterByCardStatus('Rejected')">
+          <div class="stat-value" id="s-rejected" style="color:var(--danger)">—</div>
+          <div class="stat-label"><i data-lucide="x-circle" class="emoji-sm" style="margin-right:4px; vertical-align: middle;"></i>Rejected</div>
+        </div>
+        <div class="stat-card clickable-card" data-status="Loan Disbursed" onclick="filterByCardStatus('Loan Disbursed')">
+          <div class="stat-value" id="s-disbursed" style="color:#6366f1">—</div>
+          <div class="stat-label"><i data-lucide="landmark" class="emoji-sm" style="margin-right:4px; vertical-align: middle;"></i>Disbursed</div>
+        </div>
+        <div class="stat-card clickable-card" data-status="Hold" onclick="filterByCardStatus('Hold')">
+          <div class="stat-value" id="s-hold" style="color:#ca8a04">—</div>
+          <div class="stat-label"><i data-lucide="pause-circle" class="emoji-sm" style="margin-right:4px; vertical-align: middle;"></i>Hold</div>
+        </div>
+        <div class="stat-card clickable-card" data-status="ABND" onclick="filterByCardStatus('ABND')">
+          <div class="stat-value" id="s-abnd" style="color:#b91c1c">—</div>
+          <div class="stat-label"><i data-lucide="trash-2" class="emoji-sm" style="margin-right:4px; vertical-align: middle;"></i>ABND</div>
+        </div>
+        <div class="stat-card clickable-card" data-status="Other" onclick="filterByCardStatus('Other')">
+          <div class="stat-value" id="s-other" style="color:#7c3aed">—</div>
+          <div class="stat-label"><i data-lucide="help-circle" class="emoji-sm" style="margin-right:4px; vertical-align: middle;"></i>Other</div>
+        </div>
       </div>
 
       <!-- Filters -->
@@ -67,28 +298,46 @@
         </div>
         <span class="filter-label">Area:</span>
         <select id="area-filter" onchange="loadLoans()"><option value="">All Areas</option></select>
+        <span class="filter-label">Employee:</span>
+        <select id="employee-filter" onchange="loadLoans()"><option value="">All Employees</option></select>
         <span class="filter-label">Status:</span>
         <select id="status-filter" onchange="loadLoans()">
           <option value="">All</option>
           <option value="Pending">Pending</option>
+          <option value="Under Review">Under Review</option>
+          <option value="Documents Pending">Documents Pending</option>
           <option value="Approved">Approved</option>
           <option value="Rejected">Rejected</option>
+          <option value="Loan Disbursed">Loan Disbursed</option>
+          <option value="Cancelled">Cancelled</option>
+          <option value="Hold">Hold</option>
           <option value="ABND">ABND</option>
           <option value="Other">Other</option>
         </select>
-        <span class="filter-label">Period:</span>
         <select id="period-filter" onchange="loadLoans()">
           <option value="">All Time</option>
           <option value="week">This Week</option>
           <option value="month">This Month</option>
           <option value="year">This Year</option>
+          <option value="custom">Custom Range</option>
         </select>
+        <div id="custom-date-container" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;">
+          <input type="date" id="start-date" onchange="loadLoans()" style="max-width:135px;padding:6px 10px;font-size:13px;" />
+          <span style="color:var(--text-secondary);font-size:13px;">to</span>
+          <input type="date" id="end-date" onchange="loadLoans()" style="max-width:135px;padding:6px 10px;font-size:13px;" />
+        </div>
         <button class="btn btn-secondary btn-sm" onclick="resetFilters()"><span class="emoji-sm">↺</span>Reset</button>
       </div>
 
       <div class="card full-table">
-        <div class="card-header" style="display:flex;align-items:center;gap:12px;">
+        <div class="card-header" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
           <h3><span class="emoji-sm">💼</span>Loan Records</h3>
+          <div id="active-filter-indicator" style="display:none; align-items:center; gap:8px;">
+            <span class="active-filter-badge">
+              <span id="active-filter-text">Showing: Approved Loans</span>
+              <span class="filter-badge-close" onclick="clearStatusFilter()" title="Clear Status Filter">✕</span>
+            </span>
+          </div>
           <button class="btn btn-danger btn-sm" id="delete-mode-btn" onclick="toggleDeleteMode()">Delete</button>
           <button class="btn btn-secondary btn-sm" id="cancel-delete-btn" onclick="cancelDeleteMode()" style="display:none;">Cancel</button>
           <span id="count-badge" class="badge badge-employee" style="margin-left:auto;">— loans</span>
@@ -103,13 +352,17 @@
                 <th>Phone</th>
                 <th>Area</th>
                 <th>Amount</th>
-                <th>Purpose</th>
+                <th>Banks</th>
                 <th>Status</th>
                 <th>Applied By</th>
-                <th>Date</th>
+                <th>Login Date</th>
+                <th>Upload Date</th>
+                <th>Disbursement Date</th>
+                <th>Disbursement Amount</th>
+                <th>Actions</th>
               </tr>
             </thead>
-            <tbody id="loans-tbody"><tr><td colspan="10" class="text-center text-muted">Loading...</td></tr></tbody>
+            <tbody id="loans-tbody"><tr><td colspan="14" class="text-center text-muted">Loading...</td></tr></tbody>
           </table>
         </div>
         <div id="delete-action-bar" style="display:none;padding:12px 16px;background:rgba(239,68,68,0.1);border-top:1px solid var(--border);flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;">
@@ -121,11 +374,149 @@
   </main>
 </div>
 
+<!-- ── Update Status Side Drawer ── -->
+<div class="status-drawer-overlay" id="status-drawer-overlay" onclick="closeStatusDrawer(event)">
+  <div class="status-drawer" onclick="event.stopPropagation()">
+    <div class="drawer-header">
+      <div>
+        <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #fff;">Update Loan Status</h3>
+        <div class="drawer-subtitle" style="margin-top: 8px; color: rgba(255,255,255,0.9); font-size: 13px;">
+          <div id="drawer-customer-name" style="margin-bottom: 4px;">Customer: —</div>
+          <div id="drawer-loan-amount">Loan Amount: —</div>
+        </div>
+      </div>
+      <button class="drawer-close" onclick="closeStatusDrawer()">✕</button>
+    </div>
+
+    <div class="drawer-body">
+      <div id="drawer-alert" class="alert"></div>
+
+      <!-- Status -->
+      <div>
+        <div class="drawer-section-title">Status *</div>
+        <div class="form-group" style="margin-bottom:0;">
+          <select id="drawer-new-status" class="form-control" onchange="onStatusChange()">
+            <option value="Pending">⏳ Pending</option>
+            <option value="Under Review">🔍 Under Review</option>
+            <option value="Documents Pending">📋 Documents Pending</option>
+            <option value="Approved">✅ Approved</option>
+            <option value="Rejected">❌ Rejected</option>
+            <option value="Loan Disbursed">💰 Loan Disbursed</option>
+            <option value="Cancelled">🚫 Cancelled</option>
+            <option value="Hold">⏸️ Hold</option>
+            <option value="ABND">🗑️ ABND</option>
+            <option value="Other">📌 Other</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Remarks -->
+      <div>
+        <div class="drawer-section-title">Remarks / Notes *</div>
+        <div class="form-group" style="margin-bottom:0;">
+          <textarea id="drawer-notes" class="form-control" rows="6" placeholder="Add remarks, notes, follow-up details, bank feedback, customer updates, rejection reasons, approval comments, or any relevant information related to this loan case." style="min-height:160px;resize:vertical;display:block;"></textarea>
+        </div>
+      </div>
+
+      <!-- Date Tracking -->
+      <div>
+        <div class="drawer-section-title">Date Tracking</div>
+        <div class="date-fields-grid">
+          <div class="form-group">
+            <label style="font-size:12px;"><i data-lucide="calendar" style="width: 12px; height: 12px; margin-right: 4px; vertical-align: middle;"></i>Login Date</label>
+            <input type="date" id="drawer-login-date" class="form-control" style="font-size:13px;" />
+          </div>
+          <div class="form-group">
+            <label style="font-size:12px;"><i data-lucide="upload-cloud" style="width: 12px; height: 12px; margin-right: 4px; vertical-align: middle;"></i>System Upload Date</label>
+            <input type="date" id="drawer-upload-date" class="form-control" style="font-size:13px;" />
+          </div>
+          <div class="form-group" id="disbursement-date-group">
+            <label style="font-size:12px;"><i data-lucide="calendar-check" style="width: 12px; height: 12px; margin-right: 4px; vertical-align: middle;"></i>Disbursement Date</label>
+            <input type="date" id="drawer-disbursement-date" class="form-control" style="font-size:13px;" />
+          </div>
+          <div class="form-group" id="disbursement-amount-group">
+            <label style="font-size:12px;"><i data-lucide="indian-rupee" style="width: 12px; height: 12px; margin-right: 4px; vertical-align: middle;"></i>Disbursement Amount</label>
+            <input type="text" id="drawer-disbursement-amount" class="form-control" style="font-size:13px;" placeholder="Enter disbursement amount" />
+          </div>
+        </div>
+      </div>
+
+      <!-- History Timeline -->
+      <div>
+        <div class="drawer-section-title">Status History</div>
+        <div id="drawer-history-container">
+          <div class="no-history">Loading history...</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="drawer-footer">
+      <button class="btn btn-secondary" onclick="closeStatusDrawer()">Cancel</button>
+      <button class="btn btn-primary" id="drawer-update-btn" onclick="submitStatusUpdate()">
+        <span id="drawer-update-btn-spinner" class="spinner" style="display:none; margin-right:6px; vertical-align: middle;"></span>
+        <span id="drawer-update-btn-text">Update Status</span>
+      </button>
+    </div>
+  </div>
+</div>
+
 <script src="/js/runtime-config.js?v=20260523a"></script>
 <script src="/js/api.js?v=20260516c"></script>
 <script>
+  let currentLoanId = null;
+  let deleteMode = false;
+  const selectedLoans = new Set();
+
+  const STATUS_PARAM_MAP = {
+    'pending': 'Pending',
+    'approved': 'Approved',
+    'rejected': 'Rejected',
+    'disbursed': 'Loan Disbursed',
+    'hold': 'Hold',
+    'abnd': 'ABND',
+    'other': 'Other',
+    'under review': 'Under Review',
+    'documents pending': 'Documents Pending',
+    'cancelled': 'Cancelled'
+  };
+
+  const STATUS_TO_PARAM = {
+    'Pending': 'pending',
+    'Approved': 'approved',
+    'Rejected': 'rejected',
+    'Loan Disbursed': 'disbursed',
+    'Hold': 'hold',
+    'ABND': 'abnd',
+    'Other': 'other',
+    'Under Review': 'under review',
+    'Documents Pending': 'documents pending',
+    'Cancelled': 'cancelled'
+  };
+
   const user = requireRole('admin');
-  if (user) { renderSidebarUser(); loadAreas(); loadLoans(); }
+  if (user) {
+    renderSidebarUser();
+
+    // Sync status filter from URL on load
+    const params = new URLSearchParams(window.location.search);
+    const statusParam = params.get('status');
+    if (statusParam) {
+      const normalised = STATUS_PARAM_MAP[statusParam.toLowerCase()] || statusParam;
+      const statusFilter = document.getElementById('status-filter');
+      if (statusFilter) {
+        const match = Array.from(statusFilter.options).find(
+          o => o.value.toLowerCase() === normalised.toLowerCase()
+        );
+        if (match) {
+          statusFilter.value = match.value;
+        }
+      }
+    }
+
+    loadAreas();
+    loadEmployees();
+    loadLoans();
+  }
 
   async function loadAreas() {
     const res = await api.get('/admin/areas');
@@ -134,28 +525,103 @@
     res.data.data.forEach(a => sel.innerHTML += `<option value="${a}">${a}</option>`);
   }
 
+  async function loadEmployees() {
+    const res = await api.get('/admin/employees');
+    if (!res?.ok) return;
+    const sel = document.getElementById('employee-filter');
+    (res.data.data || []).forEach(e => {
+      sel.innerHTML += `<option value="${e.id}">${e.name}</option>`;
+    });
+  }
+
   async function loadLoans() {
-    const search = document.getElementById('search-input').value;
-    const area   = document.getElementById('area-filter').value;
-    const status = document.getElementById('status-filter').value;
-    const period = document.getElementById('period-filter').value;
-    const qs = buildQueryString({ search, area, status, period });
+    const search   = document.getElementById('search-input').value;
+    const area     = document.getElementById('area-filter').value;
+    const status   = document.getElementById('status-filter').value;
+    const period   = document.getElementById('period-filter').value;
+    const employee = document.getElementById('employee-filter').value;
+    const periodDateType = 'created_at';
+
+    const customDateContainer = document.getElementById('custom-date-container');
+    let startDate = '', endDate = '';
+    if (period === 'custom') {
+      customDateContainer.style.display = 'flex';
+      startDate = document.getElementById('start-date').value;
+      endDate   = document.getElementById('end-date').value;
+      if (startDate && endDate && startDate > endDate) {
+        document.getElementById('loans-tbody').innerHTML = '<tr><td colspan="13" class="text-center text-danger" style="padding:20px;">⚠️ Start Date cannot be after End Date.</td></tr>';
+        document.getElementById('count-badge').textContent = '0 loans';
+        return;
+      }
+    } else {
+      customDateContainer.style.display = 'none';
+      document.getElementById('start-date').value = '';
+      document.getElementById('end-date').value = '';
+    }
+
+    // Update URL param with current dropdown value
+    const url = new URL(window.location.href);
+    if (status) {
+      const p = STATUS_TO_PARAM[status] || status.toLowerCase();
+      url.searchParams.set('status', p);
+    } else {
+      url.searchParams.delete('status');
+    }
+    window.history.replaceState(null, '', url.toString());
+
+    // Fetch matching loans without status filter to populate counts accurately
+    const qs = buildQueryString({ search, area, period, startDate, endDate, periodDateType, employee });
     const res = await api.get(`/admin/loans${qs}`);
     if (!res?.ok) return;
 
-    const list = res.data.data;
+    const allLoans = res.data.data;
+
+    // Compute stats
+    document.getElementById('s-total').textContent = allLoans.length;
+    document.getElementById('s-pending').textContent = allLoans.filter(l => l.status === 'Pending').length;
+    document.getElementById('s-approved').textContent = allLoans.filter(l => l.status === 'Approved').length;
+    document.getElementById('s-rejected').textContent = allLoans.filter(l => l.status === 'Rejected').length;
+    document.getElementById('s-disbursed').textContent = allLoans.filter(l => l.status === 'Loan Disbursed').length;
+    document.getElementById('s-hold').textContent = allLoans.filter(l => l.status === 'Hold').length;
+    document.getElementById('s-abnd').textContent = allLoans.filter(l => l.status === 'ABND').length;
+    
+    const otherCount = allLoans.filter(l => !['Pending', 'Approved', 'Rejected', 'Loan Disbursed', 'Hold', 'ABND'].includes(l.status)).length;
+    document.getElementById('s-other').textContent = otherCount;
+
+    // Sync highlights
+    syncActiveCardHighlight(status);
+
+    // Sync indicator badge in table header
+    const indicator = document.getElementById('active-filter-indicator');
+    const indicatorText = document.getElementById('active-filter-text');
+    if (indicator && indicatorText) {
+      if (status) {
+        indicatorText.textContent = `Showing: ${status} Loans`;
+        indicator.style.display = 'inline-flex';
+      } else {
+        indicator.style.display = 'none';
+      }
+    }
+
+    // Filter table list client-side
+    let list = allLoans;
+    if (status) {
+      if (status === 'Other') {
+        list = allLoans.filter(l => !['Pending', 'Approved', 'Rejected', 'Loan Disbursed', 'Hold', 'ABND'].includes(l.status));
+      } else {
+        list = allLoans.filter(l => l.status === status);
+      }
+    }
+
     document.getElementById('count-badge').textContent = `${list.length} loans`;
-    document.getElementById('s-total').textContent = list.length;
-    document.getElementById('s-pending').textContent = list.filter(l=>l.status==='Pending').length;
-    document.getElementById('s-approved').textContent = list.filter(l=>l.status==='Approved').length;
-    document.getElementById('s-rejected').textContent = list.filter(l=>l.status==='Rejected').length;
 
     const tbody = document.getElementById('loans-tbody');
     if (!list.length) {
-      tbody.innerHTML = `<tr><td colspan="${deleteMode ? 10 : 9}" class="text-center text-muted">No loans match the filters.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="${deleteMode ? 15 : 14}" class="text-center text-muted">No loans match the filters.</td></tr>`;
+      if (window.lucide) { try { lucide.createIcons(); } catch(e) {} }
       return;
     }
-    tbody.innerHTML = list.map((l,i) => `
+    tbody.innerHTML = list.map((l, i) => `
       <tr>
         <td class="checkbox-cell" style="display:none;width:40px;"><input type="checkbox" class="loan-checkbox" value="${l.id}" onchange="updateSelectedCount()" /></td>
         <td>${i+1}</td>
@@ -165,21 +631,70 @@
         <td style="font-weight:600;">${formatCurrency(l.amount)}</td>
         <td>${l.purpose || '—'}</td>
         <td>${statusBadge(l.status)}</td>
-        <td>${l.applied_by_name}</td>
-        <td>${formatDate(l.created_at)}</td>
+        <td>${l.applied_by_name || '—'}</td>
+        <td style="font-size:12px;white-space:nowrap;">${l.login_date ? formatDate(l.login_date) : '<span style="color:var(--text-muted)">—</span>'}</td>
+        <td style="font-size:12px;white-space:nowrap;">${l.system_upload_date ? formatDate(l.system_upload_date) : '<span style="color:var(--text-muted)">—</span>'}</td>
+        <td style="font-size:12px;white-space:nowrap;">${l.disbursement_date ? formatDate(l.disbursement_date) : '<span style="color:var(--text-muted)">—</span>'}</td>
+        <td style="font-size:12px;white-space:nowrap;font-weight:600;">${l.disbursement_amount ? formatCurrency(l.disbursement_amount) : '<span style="color:var(--text-muted)">—</span>'}</td>
+        <td><button class="btn btn-secondary btn-sm" onclick="openStatusDrawer(${l.id})">Update</button></td>
       </tr>`).join('');
 
-    const checkboxCells = document.querySelectorAll('.checkbox-cell');
-    checkboxCells.forEach(cell => {
+    document.querySelectorAll('.checkbox-cell').forEach(cell => {
       cell.style.display = deleteMode ? 'table-cell' : 'none';
+    });
+
+    if (window.lucide) { try { lucide.createIcons(); } catch(e) {} }
+  }
+
+  function syncActiveCardHighlight(activeStatus) {
+    const cards = document.querySelectorAll('.clickable-card');
+    cards.forEach(card => {
+      const cardStatus = card.getAttribute('data-status');
+      if (cardStatus === 'all' && !activeStatus) {
+        card.classList.add('active');
+      } else if (cardStatus === activeStatus) {
+        card.classList.add('active');
+      } else {
+        card.classList.remove('active');
+      }
     });
   }
 
+  function filterByCardStatus(statusVal) {
+    const statusFilter = document.getElementById('status-filter');
+    if (statusFilter) {
+      statusFilter.value = statusVal;
+    }
+
+    const url = new URL(window.location.href);
+    if (statusVal) {
+      const p = STATUS_TO_PARAM[statusVal] || statusVal.toLowerCase();
+      url.searchParams.set('status', p);
+    } else {
+      url.searchParams.delete('status');
+    }
+    window.history.pushState(null, '', url.toString());
+
+    loadLoans();
+  }
+
+  function clearStatusFilter() {
+    window.location.href = '/admin/loans.html';
+  }
+
   function resetFilters() {
-    ['search-input','area-filter','status-filter','period-filter'].forEach(id => {
-      const el = document.getElementById(id);
-      el.value = '';
+    ['search-input','area-filter','employee-filter','status-filter','period-filter'].forEach(id => {
+      document.getElementById(id).value = '';
     });
+    document.getElementById('custom-date-container').style.display = 'none';
+    document.getElementById('start-date').value = '';
+    document.getElementById('end-date').value = '';
+    
+    // Reset status URL param as well
+    const url = new URL(window.location.href);
+    url.searchParams.delete('status');
+    window.history.pushState(null, '', url.toString());
+
     loadLoans();
   }
 
@@ -189,31 +704,276 @@
     const period = document.getElementById('period-filter').value;
     const token  = typeof getToken === 'function' ? getToken() : '';
     const qs = buildQueryString({ area, status, period, token });
-    const apiBase = (typeof api !== 'undefined' && api.base)
-      ? api.base
-      : (window.api && window.api.base)
-        ? window.api.base
-        : '';
+    const apiBase = (typeof api !== 'undefined' && api.base) ? api.base : (window.api?.base || '');
     window.open(`${apiBase}/admin/reports/export${qs}`, '_blank');
   }
 
-  let deleteMode = false;
-  const selectedLoans = new Set();
+  // ── Status Drawer ─────────────────────────────────────────
+  async function openStatusDrawer(loanId) {
+    currentLoanId = loanId;
+    document.getElementById('drawer-alert').className = 'alert';
+    document.getElementById('drawer-alert').textContent = '';
+    document.getElementById('drawer-customer-name').textContent = 'Loading...';
+    document.getElementById('drawer-loan-amount').textContent = '';
+    document.getElementById('drawer-new-status').value = 'Pending';
+    document.getElementById('drawer-notes').value = '';
+    document.getElementById('drawer-login-date').value = '';
+    document.getElementById('drawer-upload-date').value = '';
+    document.getElementById('drawer-disbursement-date').value = '';
+    document.getElementById('drawer-disbursement-amount').value = '';
+    document.getElementById('drawer-history-container').innerHTML = '<div class="no-history">Loading history...</div>';
+    document.getElementById('drawer-update-btn').disabled = false;
+    const spinner = document.getElementById('drawer-update-btn-spinner');
+    const btnText = document.getElementById('drawer-update-btn-text');
+    if (spinner) spinner.style.display = 'none';
+    if (btnText) btnText.textContent = 'Update Status';
+    document.getElementById('status-drawer-overlay').classList.add('show');
+    document.body.style.overflow = 'hidden';
 
+    const res = await api.get(`/admin/loans/${loanId}`);
+    if (!res?.ok) {
+      document.getElementById('drawer-customer-name').textContent = 'Error loading loan.';
+      document.getElementById('drawer-loan-amount').textContent = '';
+      return;
+    }
+
+    const { loan, history } = res.data.data;
+    document.getElementById('drawer-customer-name').textContent = `Customer: ${loan.customer_name}`;
+    document.getElementById('drawer-loan-amount').textContent = `Loan Amount: ${formatCurrency(loan.amount)}`;
+    document.getElementById('drawer-new-status').value = loan.status || 'Pending';
+
+    if (loan.login_date) document.getElementById('drawer-login-date').value = loan.login_date.substring(0, 10);
+    if (loan.system_upload_date) document.getElementById('drawer-upload-date').value = loan.system_upload_date.substring(0, 10);
+    if (loan.disbursement_date) document.getElementById('drawer-disbursement-date').value = loan.disbursement_date.substring(0, 10);
+
+    // Populate disbursement amount
+    if (loan.disbursement_amount !== undefined && loan.disbursement_amount !== null) {
+      document.getElementById('drawer-disbursement-amount').value = '₹' + Number(loan.disbursement_amount).toLocaleString('en-IN');
+    } else {
+      document.getElementById('drawer-disbursement-amount').value = '';
+    }
+
+    // Toggle visibility based on loaded status
+    onStatusChange();
+
+    renderHistory(history || []);
+  }
+
+  function onStatusChange() {
+    const status = document.getElementById('drawer-new-status').value;
+    const dateGroup = document.getElementById('disbursement-date-group');
+    const amountGroup = document.getElementById('disbursement-amount-group');
+    const disbursementInput = document.getElementById('drawer-disbursement-date');
+
+    if (status === 'Loan Disbursed') {
+      dateGroup.style.display = 'block';
+      amountGroup.style.display = 'block';
+      if (!disbursementInput.value) {
+        disbursementInput.value = new Date().toISOString().substring(0, 10);
+      }
+    } else {
+      dateGroup.style.display = 'none';
+      amountGroup.style.display = 'none';
+    }
+
+    // Trigger lucide icons update if loaded
+    if (window.lucide) { try { lucide.createIcons(); } catch(e) {} }
+  }
+
+  function closeStatusDrawer(e) {
+    if (e && e.target !== document.getElementById('status-drawer-overlay')) return;
+    document.getElementById('status-drawer-overlay').classList.remove('show');
+    document.body.style.overflow = '';
+    currentLoanId = null;
+  }
+
+  function getStatusDotClass(status) {
+    const map = {
+      'Pending': 'dot-pending', 'Under Review': 'dot-review', 'Documents Pending': 'dot-docs',
+      'Approved': 'dot-approved', 'Rejected': 'dot-rejected', 'Loan Disbursed': 'dot-disbursed',
+      'Cancelled': 'dot-cancelled', 'Hold': 'dot-hold', 'ABND': 'dot-abnd', 'Other': 'dot-other'
+    };
+    return map[status] || 'dot-other';
+  }
+
+  function getStatusInitial(status) {
+    const map = {
+      'Pending': 'P', 'Under Review': 'R', 'Documents Pending': 'D',
+      'Approved': '✓', 'Rejected': '✕', 'Loan Disbursed': '₹',
+      'Cancelled': 'C', 'Hold': 'H', 'ABND': 'A', 'Other': 'O'
+    };
+    return map[status] || '?';
+  }
+
+  function formatHistoryDate(dt) {
+    if (!dt) return '—';
+    try {
+      const d = new Date(dt);
+      const day = String(d.getDate()).padStart(2, '0');
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const month = months[d.getMonth()];
+      const year = d.getFullYear();
+      return `${day} ${month} ${year}`;
+    } catch { return '—'; }
+  }
+
+  function formatDateDDMMYYYY(dateVal) {
+    if (!dateVal) return '—';
+    try {
+      const d = new Date(dateVal);
+      if (isNaN(d.getTime())) return '—';
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      return `${day}-${month}-${year}`;
+    } catch { return '—'; }
+  }
+
+  function formatHistoryTime(dt) {
+    if (!dt) return '—';
+    try {
+      const d = new Date(dt);
+      let hours = d.getHours();
+      const minutes = String(d.getMinutes()).padStart(2, '0');
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12;
+      hours = hours ? hours : 12;
+      const hoursStr = String(hours).padStart(2, '0');
+      return `${hoursStr}:${minutes} ${ampm}`;
+    } catch { return '—'; }
+  }
+
+  function renderHistory(history) {
+    const container = document.getElementById('drawer-history-container');
+    if (!history || !history.length) {
+      container.innerHTML = '<div class="no-history">No history recorded yet.</div>';
+      return;
+    }
+    container.innerHTML = `<div class="history-list" style="display: flex; flex-direction: column; gap: 12px; margin-top: 10px;">
+      ${history.map(h => {
+        const dateVal = h.created_at || h.changed_at;
+        const dateStr = formatHistoryDate(dateVal);
+        const timeStr = formatHistoryTime(dateVal);
+        const changedBy = h.updated_by_name || h.changed_by_name || 'System';
+        const remarkVal = h.remark || h.notes || 'Status updated.';
+        
+        let disbInfo = '';
+        if (h.status === 'Loan Disbursed') {
+          const disbDateVal = h.disbursement_date ? formatDateDDMMYYYY(h.disbursement_date) : '—';
+          const disbAmtVal = h.disbursement_amount !== null && h.disbursement_amount !== undefined ? formatCurrency(h.disbursement_amount) : '—';
+          disbInfo = `
+            <div style="font-size: 12px; margin-bottom: 8px; color: var(--text-secondary); line-height: 1.5; background: rgba(99,102,241,0.05); padding: 8px 10px; border-left: 3px solid #6366f1; border-radius: 0 4px 4px 0;">
+              <div><strong>Disbursement Date:</strong> ${disbDateVal}</div>
+              <div><strong>Disbursement Amount:</strong> ${disbAmtVal}</div>
+            </div>
+          `;
+        }
+
+        return `
+        <div class="history-card" style="border: 1px solid var(--border); border-radius: 8px; padding: 12px; background: var(--bg-secondary); box-shadow: var(--shadow-soft);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px dashed var(--border); padding-bottom: 6px;">
+            ${statusBadge(h.status)}
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 11.5px; color: var(--text-muted); margin-bottom: 8px;">
+            <div><strong>Date:</strong> ${dateStr}</div>
+            <div><strong>Time:</strong> ${timeStr}</div>
+          </div>
+          ${disbInfo}
+          <div style="font-size: 12px; margin-bottom: 8px; line-height: 1.4; background: var(--bg-primary); padding: 8px 10px; border-left: 3px solid var(--accent); border-radius: 0 4px 4px 0;">
+            <strong>Remark:</strong><br>
+            <span style="color: var(--text-primary); white-space: pre-wrap;">${escapeHtml(remarkVal)}</span>
+          </div>
+          <div style="font-size: 11.5px; color: var(--text-secondary);">
+            <strong>Updated By:</strong> ${escapeHtml(changedBy)}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }
+
+  function escapeHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // Dynamic currency formatting for disbursement amount input
+  document.getElementById('drawer-disbursement-amount').addEventListener('input', function(e) {
+    let value = this.value.replace(/[^0-9]/g, '');
+    if (!value) {
+      this.value = '';
+      return;
+    }
+    const num = parseInt(value, 10);
+    this.value = '₹' + num.toLocaleString('en-IN');
+  });
+
+  async function submitStatusUpdate() {
+    const status = document.getElementById('drawer-new-status').value;
+    const notes  = document.getElementById('drawer-notes').value.trim();
+    const login_date = document.getElementById('drawer-login-date').value || null;
+    const system_upload_date = document.getElementById('drawer-upload-date').value || null;
+    const disbursement_date  = document.getElementById('drawer-disbursement-date').value || null;
+    const amountVal = document.getElementById('drawer-disbursement-amount').value;
+    const disbursement_amount = amountVal ? parseFloat(amountVal.replace(/[^0-9]/g, '')) : null;
+
+    const btn = document.getElementById('drawer-update-btn');
+    const spinner = document.getElementById('drawer-update-btn-spinner');
+    const btnText = document.getElementById('drawer-update-btn-text');
+
+    // Frontend validation for mandatory remarks
+    if (['Rejected', 'Hold', 'Cancelled'].includes(status) && !notes) {
+      showAlert('drawer-alert', 'Please enter remarks before updating this status.', 'error');
+      return;
+    }
+
+    if (status === 'Loan Disbursed') {
+      if (!disbursement_date) {
+        showAlert('drawer-alert', 'Please enter the disbursement date.', 'error');
+        return;
+      }
+      if (disbursement_amount === null || isNaN(disbursement_amount) || amountVal.trim() === '') {
+        showAlert('drawer-alert', 'Please enter the disbursement amount.', 'error');
+        return;
+      }
+    }
+
+    btn.disabled = true;
+    if (spinner) spinner.style.display = 'inline-block';
+    if (btnText) btnText.textContent = 'Updating...';
+
+    const res = await api.patch(`/admin/loans/${currentLoanId}/status`, {
+      status, notes, login_date, system_upload_date, disbursement_date, disbursement_amount
+    });
+
+    btn.disabled = false;
+    if (spinner) spinner.style.display = 'none';
+    if (btnText) btnText.textContent = 'Update Status';
+
+    if (!res?.ok) {
+      showAlert('drawer-alert', res?.data?.message || 'Failed to update status.', 'error');
+      return;
+    }
+
+    // Refresh history timeline in modal
+    const detailRes = await api.get(`/admin/loans/${currentLoanId}`);
+    if (detailRes?.ok) {
+      renderHistory(detailRes.data.data.history || []);
+    }
+
+    document.getElementById('status-drawer-overlay').classList.remove('show');
+    document.body.style.overflow = '';
+    showAlert('page-alert', `Loan status updated to "${status}".`, 'success');
+    loadLoans();
+  }
+
+  // ── Delete Mode ───────────────────────────────────────────
   function toggleDeleteMode() {
     deleteMode = !deleteMode;
-    const checkboxHeader = document.getElementById('checkbox-header');
-    const deleteBtn = document.getElementById('delete-mode-btn');
-    const cancelBtn = document.getElementById('cancel-delete-btn');
-    const deleteBar = document.getElementById('delete-action-bar');
-    const checkboxCells = document.querySelectorAll('.checkbox-cell');
-    
     if (deleteMode) {
-      checkboxHeader.style.display = 'table-cell';
-      deleteBar.style.display = 'flex';
-      deleteBtn.style.display = 'none';
-      cancelBtn.style.display = 'inline-block';
-      checkboxCells.forEach(cell => cell.style.display = 'table-cell');
+      document.getElementById('checkbox-header').style.display = 'table-cell';
+      document.getElementById('delete-action-bar').style.display = 'flex';
+      document.getElementById('delete-mode-btn').style.display = 'none';
+      document.getElementById('cancel-delete-btn').style.display = 'inline-block';
+      document.querySelectorAll('.checkbox-cell').forEach(c => c.style.display = 'table-cell');
       selectedLoans.clear();
       document.getElementById('select-all-checkbox').checked = false;
       document.getElementById('selected-count').textContent = '0 selected';
@@ -225,47 +985,32 @@
   function cancelDeleteMode() {
     deleteMode = false;
     selectedLoans.clear();
-    const checkboxHeader = document.getElementById('checkbox-header');
-    const deleteBtn = document.getElementById('delete-mode-btn');
-    const cancelBtn = document.getElementById('cancel-delete-btn');
-    const deleteBar = document.getElementById('delete-action-bar');
-    const checkboxCells = document.querySelectorAll('.checkbox-cell');
-    const allCheckboxes = document.querySelectorAll('.loan-checkbox');
-    
-    checkboxHeader.style.display = 'none';
-    deleteBar.style.display = 'none';
-    deleteBtn.style.display = 'inline-block';
-    cancelBtn.style.display = 'none';
-    checkboxCells.forEach(cell => cell.style.display = 'none');
-    allCheckboxes.forEach(cb => cb.checked = false);
+    document.getElementById('checkbox-header').style.display = 'none';
+    document.getElementById('delete-action-bar').style.display = 'none';
+    document.getElementById('delete-mode-btn').style.display = 'inline-block';
+    document.getElementById('cancel-delete-btn').style.display = 'none';
+    document.querySelectorAll('.checkbox-cell').forEach(c => c.style.display = 'none');
+    document.querySelectorAll('.loan-checkbox').forEach(cb => cb.checked = false);
     document.getElementById('select-all-checkbox').checked = false;
   }
 
   function toggleSelectAll() {
     const mainCb = document.getElementById('select-all-checkbox');
-    const cbs = document.querySelectorAll('.loan-checkbox');
-    cbs.forEach(cb => {
+    document.querySelectorAll('.loan-checkbox').forEach(cb => {
       cb.checked = mainCb.checked;
-      if (mainCb.checked) {
-        selectedLoans.add(parseInt(cb.value));
-      } else {
-        selectedLoans.delete(parseInt(cb.value));
-      }
+      if (mainCb.checked) selectedLoans.add(parseInt(cb.value));
+      else selectedLoans.delete(parseInt(cb.value));
     });
     updateSelectedCountText();
   }
 
   function updateSelectedCount() {
-    const cbs = document.querySelectorAll('.loan-checkbox');
     let allChecked = true;
+    const cbs = document.querySelectorAll('.loan-checkbox');
     cbs.forEach(cb => {
       const id = parseInt(cb.value);
-      if (cb.checked) {
-        selectedLoans.add(id);
-      } else {
-        selectedLoans.delete(id);
-        allChecked = false;
-      }
+      if (cb.checked) selectedLoans.add(id);
+      else { selectedLoans.delete(id); allChecked = false; }
     });
     document.getElementById('select-all-checkbox').checked = cbs.length > 0 && allChecked;
     updateSelectedCountText();
@@ -276,20 +1021,11 @@
   }
 
   async function confirmDeleteSelected() {
-    if (selectedLoans.size === 0) {
-      alert('Please select at least one loan record to delete.');
-      return;
-    }
-    if (!confirm(`Are you sure you want to delete the ${selectedLoans.size} selected loan record(s)?`)) {
-      return;
-    }
-    
+    if (selectedLoans.size === 0) { alert('Please select at least one loan record to delete.'); return; }
+    if (!confirm(`Are you sure you want to delete the ${selectedLoans.size} selected loan record(s)?`)) return;
     const ids = Array.from(selectedLoans);
     const res = await api.post('/admin/loans/delete', { ids });
-    if (!res?.ok) {
-      return alert(res?.data?.message || 'Failed to delete selected loan records.');
-    }
-    
+    if (!res?.ok) return alert(res?.data?.message || 'Failed to delete selected loan records.');
     alert('Selected loan records deleted successfully.');
     cancelDeleteMode();
     loadLoans();

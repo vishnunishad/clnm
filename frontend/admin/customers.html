@@ -32,6 +32,11 @@
         <a href="/admin/employees.html" class="nav-item"><span class="nav-icon emoji-sm">👥</span> Employees</a>
         <a href="/admin/customers.html" class="nav-item active"><span class="nav-icon emoji-sm">📋</span> Customers</a>
         <a href="/admin/loans.html" class="nav-item"><span class="nav-icon emoji-sm">💼</span> Loan Applications</a>
+        <a href="/admin/emi-calculator.html" class="nav-item"><span class="nav-icon emoji-sm">🧮</span> EMI Calculator</a>
+
+        <a href="/admin/data-excel.html" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/></svg></span> Data Excel Document</a>
+        <a href="/admin/apr.html" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span> APR</a>
+
       </div>
     </nav>
     <div class="sidebar-footer">
@@ -58,6 +63,14 @@
           <span class="search-icon">Search</span>
           <input type="text" id="search-input" class="form-control" placeholder="Search by name or phone..." oninput="loadCustomers()" style="width:100%;" />
         </div>
+
+        <div id="custom-date-container" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span style="font-size:13px;color:var(--text-secondary);margin-left:8px;">📅 Custom:</span>
+          <input type="date" id="start-date" onchange="loadCustomers()" style="max-width:135px;padding:6px 10px;font-size:13px;" />
+          <span style="color:var(--text-secondary);font-size:13px;">to</span>
+          <input type="date" id="end-date" onchange="loadCustomers()" style="max-width:135px;padding:6px 10px;font-size:13px;" />
+        </div>
+
         <div class="area-filter-container" style="position: relative; max-width: 150px;">
           <input type="text" id="area-search-input" class="form-control" placeholder="Search areas..." oninput="filterAreaOptions()" />
           <div id="area-dropdown" class="area-dropdown" style="position: absolute; top: calc(100% + 2px); left: 0; right: 0; background: var(--bg-card); border: 1px solid var(--border); border-radius: 0 0 8px 8px; max-height: 250px; overflow-y: auto; display: none; z-index: 1000; box-shadow: 0 8px 16px rgba(31, 43, 39, 0.12); min-width: 140px;">
@@ -84,10 +97,11 @@
                 <div class="filter-option" onclick="applyDateFilter('week', 'This Week')" style="padding:8px 14px;cursor:pointer;font-size:13px;color:var(--text-primary);transition:background 0.2s;">This Week</div>
                 <div class="filter-option" onclick="applyDateFilter('month', 'This Month')" style="padding:8px 14px;cursor:pointer;font-size:13px;color:var(--text-primary);transition:background 0.2s;">This Month</div>
                 <div class="filter-option" onclick="applyDateFilter('year', 'This Year')" style="padding:8px 14px;cursor:pointer;font-size:13px;color:var(--text-primary);transition:background 0.2s;">This Year</div>
+                <div class="filter-option" onclick="applyDateFilter('custom', 'Custom Range')" style="padding:8px 14px;cursor:pointer;font-size:13px;color:var(--text-primary);transition:background 0.2s;">Custom Range</div>
               </div>
             </div>
             <!-- Download CSV Button -->
-            <button class="btn btn-primary btn-sm" id="download-csv-btn" onclick="downloadCSV()" style="display:none;align-items:center;gap:6px;">
+            <button class="btn btn-primary btn-sm" id="download-csv-btn" onclick="downloadCSV()" style="display:inline-flex;align-items:center;gap:6px;">
               <span class="emoji-sm">📥</span>Download CSV
             </button>
           </div>
@@ -104,8 +118,8 @@
 </div>
 
 <!-- Customer Detail Modal -->
-<div class="modal-overlay" id="detail-modal">
-  <div class="modal" style="max-width:600px;">
+<div class="modal-overlay" id="detail-modal" onclick="closeDetailOnOverlay(event)">
+  <div class="modal" style="max-width:600px;" onclick="event.stopPropagation()">
     <div class="modal-header">
       <h3 id="detail-title">Customer Details</h3>
       <button class="modal-close" onclick="closeDetail()">Close</button>
@@ -118,6 +132,7 @@
 <script src="/js/runtime-config.js?v=20260523a"></script>
 <script src="/js/api.js?v=20260516c"></script>
 <script>
+  let selectedPeriod = '';
   const user = requireRole('admin');
   if (user) { 
     renderSidebarUser(); 
@@ -132,10 +147,16 @@
       areaDropdown.style.display = 'block';
     });
     
-    // Close dropdown when clicking outside
+    // Close dropdown when clicking outside and prevent desync
     document.addEventListener('click', (e) => {
       if (!e.target.closest('.area-filter-container')) {
-        areaDropdown.style.display = 'none';
+        if (areaDropdown.style.display === 'block') {
+          areaDropdown.style.display = 'none';
+          // Revert search input text to the currently active filter value
+          const activeFilter = document.getElementById('area-filter').value;
+          areaSearchInput.value = activeFilter || '';
+          filterAreaOptions(); // reset options display
+        }
       }
     });
   }
@@ -182,17 +203,25 @@
   }
 
   function filterAreaOptions() {
-    const searchValue = document.getElementById('area-search-input').value.toLowerCase();
+    const searchValue = document.getElementById('area-search-input').value.trim();
+    
+    // Clear area filter if user clears the text box and it was previously selected
+    const activeFilter = document.getElementById('area-filter');
+    if (searchValue === '' && activeFilter.value !== '') {
+      activeFilter.value = '';
+      loadCustomers();
+    }
+    
     const options = document.querySelectorAll('.area-option');
     options.forEach(option => {
-      const optionText = option.getAttribute('data-value').toLowerCase();
+      const optionText = (option.getAttribute('data-value') || '').toLowerCase();
       if (searchValue === '') {
-        option.style.display = option.getAttribute('data-value') === '' ? 'block' : 'block';
+        option.style.display = 'block';
       } else {
         if (option.getAttribute('data-value') === '') {
           option.style.display = 'none';
         } else {
-          option.style.display = optionText.includes(searchValue) ? 'block' : 'none';
+          option.style.display = optionText.includes(searchValue.toLowerCase()) ? 'block' : 'none';
         }
       }
     });
@@ -202,7 +231,19 @@
     const search = document.getElementById('search-input').value;
     const area = document.getElementById('area-filter').value;
     const period = selectedPeriod;
-    const qs = buildQueryString({ search, area, period });
+    let startDate = '';
+    let endDate = '';
+    if (period === 'custom') {
+      startDate = document.getElementById('start-date').value;
+      endDate = document.getElementById('end-date').value;
+      if (startDate && endDate && startDate > endDate) {
+        const tbody = document.getElementById('customers-tbody');
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger" style="font-weight:500;padding:20px;">⚠️ Start Date cannot be after End Date.</td></tr>';
+        document.getElementById('count-badge').textContent = `0 customers`;
+        return;
+      }
+    }
+    const qs = buildQueryString({ search, area, period, startDate, endDate });
     const tbody = document.getElementById('customers-tbody');
     tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">Loading...</td></tr>';
     try {
@@ -263,7 +304,10 @@
     document.getElementById('detail-body').innerHTML = `
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">
         <div><span style="color:var(--text-muted);font-size:12px;">Phone</span><p style="font-weight:600;">${customer.phone}</p></div>
-        <div><span style="color:var(--text-muted);font-size:12px;">Area</span><p style="font-weight:600;">${customer.area}</p></div>
+        <div><span style="color:var(--text-muted);font-size:12px;">Email</span><p style="font-weight:600;">${customer.email || '—'}</p></div>
+        <div><span style="color:var(--text-muted);font-size:12px;">Net Salary</span><p style="font-weight:600;">${customer.net_salary !== undefined && customer.net_salary !== null ? '₹' + Number(customer.net_salary).toLocaleString('en-IN') : '—'}</p></div>
+        <div><span style="color:var(--text-muted);font-size:12px;">Total Obligation</span><p style="font-weight:600;">${customer.total_obligation !== undefined && customer.total_obligation !== null ? '₹' + Number(customer.total_obligation).toLocaleString('en-IN') : '—'}</p></div>
+        <div style="grid-column:span 2"><span style="color:var(--text-muted);font-size:12px;">Area</span><p style="font-weight:600;">${customer.area}</p></div>
         <div style="grid-column:span 2"><span style="color:var(--text-muted);font-size:12px;">Address</span><p>${customer.address}</p></div>
       </div>
       <h4 style="margin-bottom:12px;font-size:14px;">Documents (${documents.length})</h4>
@@ -277,7 +321,7 @@
       <h4 style="margin-bottom:12px;font-size:14px;">Loans (${loans.length})</h4>
       ${loans.length ? loans.map(l => `
         <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--bg-card);border-radius:8px;margin-bottom:6px;">
-          <span>${formatCurrency(l.amount)} — ${l.purpose || 'General'}</span>
+          <span>${formatCurrency(l.amount)} — ${l.purpose || 'General'}${l.disbursement_amount ? ` (Disbursed: ${formatCurrency(l.disbursement_amount)})` : ''}</span>
           ${statusBadge(l.status)}
         </div>`).join('') : '<p style="color:var(--text-muted);">No loans.</p>'}
     `;
@@ -286,7 +330,18 @@
 
   function closeDetail() { document.getElementById('detail-modal').classList.remove('show'); }
 
-  let selectedPeriod = '';
+  function closeDetailOnOverlay(event) {
+    if (event.target.id === 'detail-modal') {
+      closeDetail();
+    }
+  }
+
+  // Close modal on Escape key press
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      closeDetail();
+    }
+  });
 
   function toggleFilterMenu() {
     const menu = document.getElementById('filter-menu');
@@ -307,12 +362,13 @@
     document.getElementById('current-filter-label').textContent = `(${label})`;
     document.getElementById('filter-menu').style.display = 'none';
     
-    // Show/hide Download CSV button based on filter presence
-    const csvBtn = document.getElementById('download-csv-btn');
-    if (period) {
-      csvBtn.style.display = 'inline-flex';
+    const customDateContainer = document.getElementById('custom-date-container');
+    if (period === 'custom') {
+      customDateContainer.style.display = 'flex';
     } else {
-      csvBtn.style.display = 'none';
+      customDateContainer.style.display = 'none';
+      document.getElementById('start-date').value = '';
+      document.getElementById('end-date').value = '';
     }
     
     loadCustomers();
@@ -322,8 +378,14 @@
     const search = document.getElementById('search-input').value;
     const area   = document.getElementById('area-filter').value;
     const period = selectedPeriod;
+    let startDate = '';
+    let endDate = '';
+    if (period === 'custom') {
+      startDate = document.getElementById('start-date').value;
+      endDate = document.getElementById('end-date').value;
+    }
     const token  = typeof getToken === 'function' ? getToken() : '';
-    const qs = buildQueryString({ search, area, period, token });
+    const qs = buildQueryString({ search, area, period, startDate, endDate, token });
     
     const apiBase = (typeof api !== 'undefined' && api.base)
       ? api.base

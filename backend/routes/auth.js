@@ -13,4 +13,7 @@ router.post('/reset-password', authController.resetPassword);
 // Get current user info
 router.get('/me', requireAuth, authController.getMe);
 
+// Logout endpoint
+router.post('/logout', requireAuth, authController.logout);
+
 module.exports = router;

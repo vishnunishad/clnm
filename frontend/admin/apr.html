@@ -1,0 +1,1329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CLN Lending Suite — APR Module</title>
+  <meta name="description" content="APR — Attendance, Performance & Reports Management Dashboard." />
+  <meta name="theme-color" content="#0f2747" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
+  <link rel="stylesheet" href="/css/styles.css" />
+  <!-- CDNs for charts and exporting -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+
+  <style>
+    /* ═══ Scoped styles for APR Module ═══════════════════════════════════════ */
+    .apr-container {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* Tabs System */
+    .apr-tabs {
+      display: flex;
+      gap: 8px;
+      padding: 4px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      width: fit-content;
+      box-shadow: var(--shadow-soft);
+      overflow-x: auto;
+      max-width: 100%;
+    }
+    .apr-tab-btn {
+      padding: 10px 20px;
+      border: none;
+      background: transparent;
+      border-radius: calc(var(--radius) - 4px);
+      font-size: 13px;
+      font-weight: 600;
+      font-family: inherit;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .apr-tab-btn.active {
+      background: linear-gradient(135deg, var(--accent) 0%, #173b6b 100%);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(15, 39, 71, 0.22);
+    }
+    .apr-tab-btn:hover:not(.active) {
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+    .apr-tab-panel {
+      display: none;
+    }
+    .apr-tab-panel.active {
+      display: block;
+      animation: aprFadeUp 0.3s ease;
+    }
+    @keyframes aprFadeUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: none; }
+    }
+
+    /* Stats Grid & Grouping */
+    .apr-section-group {
+      margin-bottom: 32px;
+    }
+    .apr-section-title {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-secondary);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .apr-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .apr-stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 18px;
+      box-shadow: var(--shadow-soft);
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .apr-stat-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-medium);
+    }
+    .apr-stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: var(--accent);
+    }
+    .apr-stat-blue::before { background: linear-gradient(90deg, #3b82f6, #1d4ed8); }
+    .apr-stat-green::before { background: linear-gradient(90deg, #22c55e, #16a34a); }
+    .apr-stat-amber::before { background: linear-gradient(90deg, #f59e0b, #d97706); }
+    .apr-stat-rose::before { background: linear-gradient(90deg, #f43f5e, #e11d48); }
+    .apr-stat-purple::before { background: linear-gradient(90deg, #a855f7, #7c3aed); }
+
+    .apr-stat-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .apr-stat-icon {
+      font-size: 20px;
+      color: var(--accent);
+    }
+    .apr-stat-val {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--text-primary);
+      line-height: 1.1;
+      margin-top: 4px;
+    }
+    .apr-stat-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .apr-trend {
+      display: inline-flex;
+      align-items: center;
+      font-weight: 700;
+    }
+    .apr-trend.up { color: #22c55e; }
+    .apr-trend.down { color: #f43f5e; }
+
+    /* Filters Panel */
+    .apr-filters {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      align-items: flex-end;
+      box-shadow: var(--shadow-soft);
+    }
+    .apr-filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .apr-filter-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      letter-spacing: 0.5px;
+    }
+    .apr-filter-select, .apr-filter-input {
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      background: var(--bg-body);
+      color: var(--text-primary);
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+      min-width: 140px;
+      transition: border-color 0.2s;
+    }
+    .apr-filter-select:focus, .apr-filter-input:focus {
+      border-color: var(--accent);
+    }
+
+    /* Leaderboard Badge Colors */
+    .badge-rank {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .badge-gold { background: #fef08a; color: #854d0e; border: 1.5px solid #eab308; }
+    .badge-silver { background: #e2e8f0; color: #334155; border: 1.5px solid #94a3b8; }
+    .badge-bronze { background: #ffedd5; color: #9a3412; border: 1.5px solid #ea580c; }
+    .badge-normal { background: var(--bg-body); color: var(--text-secondary); border: 1px solid var(--border); }
+
+    /* Badges */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .status-badge.online { background: rgba(34, 197, 94, 0.12); color: #22c55e; }
+    .status-badge.offline { background: rgba(148, 163, 184, 0.12); color: #94a3b8; }
+    .status-badge.on-break { background: rgba(245, 158, 11, 0.12); color: #f59e0b; }
+    .status-badge.logged-out { background: rgba(244, 63, 94, 0.12); color: #f43f5e; }
+    .status-badge.auto-deactivated { background: rgba(168, 85, 247, 0.12); color: #a855f7; }
+    .status-badge.manual-override { background: rgba(6, 182, 212, 0.12); color: #06b6d4; }
+
+    /* Exports Bar */
+    .apr-actions-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .apr-btn-group {
+      display: flex;
+      gap: 8px;
+    }
+    .apr-export-btn {
+      padding: 8px 14px;
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      color: var(--text-secondary);
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .apr-export-btn:hover {
+      background: var(--accent-soft);
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+
+    /* Grid for analytics/details split */
+    .apr-grid-split {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 1024px) {
+      .apr-grid-split {
+        grid-template-columns: 1fr;
+      }
+    }
+    .chart-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow-soft);
+    }
+    .chart-box-title {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Scoreboard cards */
+    .scoreboard-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+    }
+    .score-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      box-shadow: var(--shadow-soft);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .score-progress-bar {
+      height: 6px;
+      border-radius: 3px;
+      background: var(--border);
+      overflow: hidden;
+    }
+    .score-progress-val {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 3px;
+    }
+    .apr-dashboard-split {
+      display: grid;
+      grid-template-columns: 2.2fr 1.8fr;
+      gap: 20px;
+      align-items: stretch;
+      margin-bottom: 32px;
+    }
+    @media (max-width: 1200px) {
+      .apr-dashboard-split {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+        <div class="sidebar-logo">
+        <div class="logo-icon">CLN</div>
+        <div><h2>CLN Lending Suite</h2><span>Admin Console</span></div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">
+        <div class="nav-section-title">Main</div>
+        <a href="/admin/dashboard.html" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg></span> Dashboard</a>
+        <a href="/admin/employees.html" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span> Employees</a>
+        <a href="/admin/customers.html" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span> Customers</a>
+        <a href="/admin/loans.html" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></span> Loan Applications</a>
+        <a href="/admin/emi-calculator.html" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/><line x1="9" y1="9" x2="9" y2="17"/><line x1="15" y1="9" x2="15" y2="17"/></svg></span> EMI Calculator</a>
+
+        <a href="/admin/data-excel.html" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/></svg></span> Data Excel Document</a>
+        <a href="/admin/apr.html" class="nav-item active"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span> APR</a>
+
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-info">
+        <div class="user-avatar" id="sidebar-user-avatar">A</div>
+        <div class="user-details"><p id="sidebar-user-name">Admin</p><span id="sidebar-user-role">admin</span></div>
+      </div>
+      <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
+  </aside>
+
+  <!-- Mobile overlay -->
+  <div class="sidebar-overlay" onclick="toggleMobileSidebar()"></div>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <div class="topbar">
+      <button class="mobile-menu-btn" onclick="toggleMobileSidebar()" title="Toggle menu">Menu</button>
+      <div class="topbar-title">
+        <h2>APR Dashboard</h2>
+        <p>Real-time employee monitoring, performance scorecards, and reports</p>
+      </div>
+      <div class="topbar-actions">
+        <span id="current-date" style="font-size:13px;color:var(--text-secondary);"></span>
+      </div>
+    </div>
+
+    <div class="page-content">
+      <div class="apr-container">
+        
+        <!-- Filters panel -->
+        <div class="apr-filters">
+          <div class="apr-filter-group">
+            <label class="apr-filter-label">Timeline</label>
+            <select id="filter-range" class="apr-filter-select" onchange="toggleCustomDate(this.value); refreshAll();">
+              <option value="today">Today</option>
+              <option value="yesterday">Yesterday</option>
+              <option value="last7">Last 7 Days</option>
+              <option value="last30" selected>Last 30 Days</option>
+              <option value="thisMonth">This Month</option>
+              <option value="custom">Custom Date Range</option>
+            </select>
+          </div>
+          
+          <div class="apr-filter-group" id="custom-date-container" style="display:none; flex-direction:row; gap:10px;">
+            <div class="apr-filter-group">
+              <label class="apr-filter-label">From</label>
+              <input type="date" id="filter-start" class="apr-filter-input" onchange="refreshAll();" />
+            </div>
+            <div class="apr-filter-group">
+              <label class="apr-filter-label">To</label>
+              <input type="date" id="filter-end" class="apr-filter-input" onchange="refreshAll();" />
+            </div>
+          </div>
+
+          <input type="hidden" id="filter-dept" value="" />
+
+          <div class="apr-filter-group">
+            <label class="apr-filter-label">Employee ID or Name</label>
+            <input type="text" id="filter-search" class="apr-filter-input" placeholder="Search..." oninput="debounce(refreshAll, 400)();" />
+          </div>
+        </div>
+
+        <!-- Tabs bar -->
+        <div class="apr-tabs">
+          <button class="apr-tab-btn active" onclick="switchTab('tab-dashboard')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg> Main Dashboard
+          </button>
+          <button class="apr-tab-btn" onclick="switchTab('tab-attendance')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg> Live Attendance
+          </button>
+          <button class="apr-tab-btn" onclick="switchTab('tab-daily')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Daily Logins
+          </button>
+          <button class="apr-tab-btn" onclick="switchTab('tab-history')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Login History
+          </button>
+          <button class="apr-tab-btn" onclick="switchTab('tab-analytics')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> Analytics
+          </button>
+          <button class="apr-tab-btn" onclick="switchTab('tab-performance')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Performance Scorecard
+          </button>
+          <button class="apr-tab-btn" onclick="switchTab('tab-leaderboard')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg> Leaderboard
+          </button>
+          <button class="apr-tab-btn" onclick="switchTab('tab-breaks')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> Live Break Monitor
+          </button>
+        </div>
+
+        <!-- 1. MAIN DASHBOARD TAB -->
+        <div id="tab-dashboard" class="apr-tab-panel active">
+          
+          <!-- Group 1: Roster & Attendance Overview -->
+          <div class="apr-section-group">
+            <h3 class="apr-section-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+              Roster & Attendance Overview
+            </h3>
+            <div class="apr-stats-grid" id="grid-attendance">
+              <!-- Populated via JS -->
+            </div>
+          </div>
+
+          <!-- Group 2: Real-time Status & Break Activity -->
+          <div class="apr-section-group">
+            <h3 class="apr-section-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              Real-time Connectivity & Activity
+            </h3>
+            <div class="apr-dashboard-split">
+              <div class="apr-stats-grid" id="grid-realtime" style="margin-bottom:0;">
+                <!-- Populated via JS -->
+              </div>
+              <div class="chart-box" style="margin-top:0;">
+                <div class="chart-box-title" style="font-size:13px; color:var(--text-secondary); border-bottom:1px dashed var(--border); padding-bottom:6px; margin-bottom:12px;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;vertical-align:middle;margin-right:4px;"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> Break Counts & Durations
+                </div>
+                <div class="scoreboard-grid" id="breaks-kpi-grid">
+                  <!-- Breaks summary populated via JS -->
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Group 3: Time & Performance Metrics -->
+          <div class="apr-section-group">
+            <h3 class="apr-section-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+              Time & Performance Metrics
+            </h3>
+            <div class="apr-dashboard-split">
+              <div class="apr-stats-grid" id="grid-performance" style="margin-bottom:0;">
+                <!-- Populated via JS -->
+              </div>
+              <div class="chart-box" style="margin-top:0;">
+                <div class="chart-box-title" style="font-size:13px; color:var(--text-secondary); border-bottom:1px dashed var(--border); padding-bottom:6px; margin-bottom:12px;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;vertical-align:middle;margin-right:4px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Working Hours Breakdowns
+                </div>
+                <div class="scoreboard-grid" id="hours-kpi-grid">
+                  <!-- Working hours summary populated via JS -->
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- 2. LIVE ATTENDANCE TAB -->
+        <div id="tab-attendance" class="apr-tab-panel">
+          <div class="apr-actions-bar">
+            <h3>Live Employee Roster</h3>
+            <div class="apr-btn-group">
+              <button class="apr-export-btn" onclick="exportTable('attendance-table', 'Excel')">Excel</button>
+              <button class="apr-export-btn" onclick="exportTable('attendance-table', 'CSV')">CSV</button>
+              <button class="apr-export-btn" onclick="exportTable('attendance-table', 'PDF')">PDF</button>
+              <button class="apr-export-btn" onclick="window.print()">Print</button>
+            </div>
+          </div>
+          <div class="card full-table">
+            <div class="table-wrapper">
+              <table id="attendance-table">
+                <thead>
+                  <tr>
+                    <th onclick="sortRoster('employee_id')">Emp ID</th>
+                    <th onclick="sortRoster('employee_name')">Employee Name</th>
+                    <th onclick="sortRoster('login_time')">Login Time</th>
+                    <th onclick="sortRoster('logout_time')">Logout Time</th>
+                    <th onclick="sortRoster('current_status')">Current Status</th>
+                    <th onclick="sortRoster('working_hours')">Today's Hours</th>
+                    <th onclick="sortRoster('break_time')">Today's Break</th>
+                    <th onclick="sortRoster('active_session')">Active Session</th>
+                    <th onclick="sortRoster('last_activity')">Last Activity</th>
+                    <th onclick="sortRoster('attendance_status')">Attendance Status</th>
+                  </tr>
+                </thead>
+                <tbody id="attendance-tbody">
+                  <tr><td colspan="10" style="text-align:center;color:var(--text-muted);">Loading live roster...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. DAILY LOGINS TAB -->
+        <div id="tab-daily" class="apr-tab-panel">
+          <div class="apr-actions-bar">
+            <h3>Daily Login Summary</h3>
+            <div class="apr-btn-group">
+              <button class="apr-export-btn" onclick="exportTable('daily-table', 'Excel')">Excel</button>
+              <button class="apr-export-btn" onclick="exportTable('daily-table', 'CSV')">CSV</button>
+              <button class="apr-export-btn" onclick="exportTable('daily-table', 'PDF')">PDF</button>
+              <button class="apr-export-btn" onclick="window.print()">Print</button>
+            </div>
+          </div>
+          <div class="card full-table">
+            <div class="table-wrapper">
+              <table id="daily-table">
+                <thead>
+                  <tr>
+                    <th>Employee Name</th>
+                    <th>Date</th>
+                    <th>First Login</th>
+                    <th>Last Logout</th>
+                    <th>Sessions</th>
+                    <th>Total Working Hours</th>
+                    <th>Overtime</th>
+                    <th>Break Duration (mins)</th>
+                    <th>Late Login</th>
+                    <th>Early Logout</th>
+                  </tr>
+                </thead>
+                <tbody id="daily-tbody">
+                  <tr><td colspan="10" style="text-align:center;color:var(--text-muted);">Loading logs...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. LOGIN HISTORY TAB -->
+        <div id="tab-history" class="apr-tab-panel">
+          <div class="apr-actions-bar">
+            <h3>Session Login History Logs</h3>
+            <div class="apr-btn-group">
+              <button class="apr-export-btn" onclick="exportTable('history-table', 'Excel')">Excel</button>
+              <button class="apr-export-btn" onclick="exportTable('history-table', 'CSV')">CSV</button>
+              <button class="apr-export-btn" onclick="exportTable('history-table', 'PDF')">PDF</button>
+              <button class="apr-export-btn" onclick="window.print()">Print</button>
+            </div>
+          </div>
+          <div class="card full-table">
+            <div class="table-wrapper">
+              <table id="history-table">
+                <thead>
+                  <tr>
+                    <th>Employee</th>
+                    <th>Login Date</th>
+                    <th>Login Time</th>
+                    <th>Logout Time</th>
+                    <th>Session Duration (hrs)</th>
+                    <th>IP Address</th>
+                    <th>Browser</th>
+                    <th>OS / Device</th>
+                    <th>Location</th>
+                  </tr>
+                </thead>
+                <tbody id="history-tbody">
+                  <tr><td colspan="9" style="text-align:center;color:var(--text-muted);">Loading complete login logs...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- 5. ANALYTICS TAB -->
+        <div id="tab-analytics" class="apr-tab-panel">
+          <div class="apr-grid-split">
+            <div class="chart-box">
+              <div class="chart-box-title">Daily Attendance Trends</div>
+              <div class="chart-container" style="position:relative;height:240px;"><canvas id="chart-attendance-trend"></canvas></div>
+            </div>
+            <div class="chart-box">
+              <div class="chart-box-title">Online vs Offline Ratios</div>
+              <div class="chart-container" style="position:relative;height:240px;width:240px;margin:auto;"><canvas id="chart-online-ratio"></canvas></div>
+            </div>
+          </div>
+          <div class="apr-grid-split" style="margin-top:20px;">
+            <div class="chart-box" style="grid-column: span 2;">
+              <div class="chart-box-title">Working Hours Trends</div>
+              <div class="chart-container" style="position:relative;height:240px;"><canvas id="chart-working-trend"></canvas></div>
+            </div>
+            <div style="display:none;"><canvas id="chart-department-presence"></canvas></div>
+          </div>
+        </div>
+
+        <!-- 6. PERFORMANCE SCORECARD TAB -->
+        <div id="tab-performance" class="apr-tab-panel">
+          <div class="apr-actions-bar">
+            <h3>Employee Performance Matrix</h3>
+            <div class="apr-btn-group">
+              <button class="apr-export-btn" onclick="exportTable('performance-table', 'Excel')">Excel</button>
+              <button class="apr-export-btn" onclick="exportTable('performance-table', 'CSV')">CSV</button>
+              <button class="apr-export-btn" onclick="exportTable('performance-table', 'PDF')">PDF</button>
+              <button class="apr-export-btn" onclick="window.print()">Print</button>
+            </div>
+          </div>
+          <div class="card full-table">
+            <div class="table-wrapper">
+              <table id="performance-table">
+                <thead>
+                  <tr>
+                    <th>Employee ID</th>
+                    <th>Employee Name</th>
+                    <th>Customers Added</th>
+                    <th>Loans Submitted</th>
+                    <th>Approved Loans</th>
+                    <th>Rejected Loans</th>
+                    <th>Disbursed Loans</th>
+                    <th>Conversion Rate</th>
+                    <th>Avg Processing (hrs)</th>
+                    <th>Productivity Score</th>
+                    <th>Attendance Score</th>
+                  </tr>
+                </thead>
+                <tbody id="performance-tbody">
+                  <tr><td colspan="11" style="text-align:center;color:var(--text-muted);">Loading scorecard...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- 7. LEADERBOARD TAB -->
+        <div id="tab-leaderboard" class="apr-tab-panel">
+          <div class="apr-actions-bar">
+            <h3>Monthly Performance Leaderboard</h3>
+            <div class="apr-btn-group">
+              <button class="apr-export-btn" onclick="exportTable('leaderboard-table', 'Excel')">Excel</button>
+              <button class="apr-export-btn" onclick="exportTable('leaderboard-table', 'CSV')">CSV</button>
+              <button class="apr-export-btn" onclick="exportTable('leaderboard-table', 'PDF')">PDF</button>
+              <button class="apr-export-btn" onclick="window.print()">Print</button>
+            </div>
+          </div>
+          <div class="card full-table">
+            <div class="table-wrapper">
+              <table id="leaderboard-table">
+                <thead>
+                  <tr>
+                    <th>Rank</th>
+                    <th>Employee Name</th>
+                    <th>Performance Score</th>
+                    <th>Attendance Score</th>
+                    <th>Productivity</th>
+                    <th>Working Hours</th>
+                    <th>Loans Processed</th>
+                    <th>Badge</th>
+                  </tr>
+                </thead>
+                <tbody id="leaderboard-tbody">
+                  <tr><td colspan="8" style="text-align:center;color:var(--text-muted);">Loading leaderboard...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- 8. BREAK MONITOR TAB -->
+        <div id="tab-breaks" class="apr-tab-panel">
+          <div class="apr-actions-bar">
+            <h3>Live Break Logs</h3>
+            <div class="apr-btn-group">
+              <button class="apr-export-btn" onclick="exportTable('breaks-table', 'Excel')">Excel</button>
+              <button class="apr-export-btn" onclick="exportTable('breaks-table', 'CSV')">CSV</button>
+              <button class="apr-export-btn" onclick="exportTable('breaks-table', 'PDF')">PDF</button>
+              <button class="apr-export-btn" onclick="window.print()">Print</button>
+            </div>
+          </div>
+          <div class="card full-table">
+            <div class="table-wrapper">
+              <table id="breaks-table">
+                <thead>
+                  <tr>
+                    <th>Employee ID</th>
+                    <th>Employee Name</th>
+                    <th>Break Type</th>
+                    <th>Start Time</th>
+                    <th>End Time</th>
+                    <th>Duration (mins)</th>
+                    <th>Status</th>
+                    <th>Remarks</th>
+                  </tr>
+                </thead>
+                <tbody id="breaks-tbody">
+                  <tr><td colspan="8" style="text-align:center;color:var(--text-muted);">Loading break logs...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="/js/runtime-config.js?v=20260523a"></script>
+<script src="/js/api.js?v=20260516c"></script>
+<script>
+  // Require Admin access role validation
+  const user = requireRole('admin');
+  if (user) {
+    renderSidebarUser();
+    document.getElementById('current-date').textContent = new Date().toLocaleDateString('en-IN', { weekday:'long', day:'2-digit', month:'long', year:'numeric' });
+    initDashboard();
+  }
+
+  let rosterSortBy = 'employee_name';
+  let rosterSortDir = 'asc';
+  let charts = {};
+
+  function initDashboard() {
+    refreshAll();
+    // Refresh live dashboards every 30 seconds
+    setInterval(() => {
+      const activeTab = document.querySelector('.apr-tab-btn.active').getAttribute('onclick').match(/'([^']+)'/)[1];
+      if (activeTab === 'tab-dashboard' || activeTab === 'tab-attendance' || activeTab === 'tab-breaks') {
+        refreshAll(true); // silent update
+      }
+    }, 30000);
+  }
+
+  function toggleCustomDate(val) {
+    document.getElementById('custom-date-container').style.display = val === 'custom' ? 'flex' : 'none';
+  }
+
+  function getQueryString() {
+    const range = document.getElementById('filter-range').value;
+    const dept = document.getElementById('filter-dept').value;
+    const search = document.getElementById('filter-search').value;
+    
+    let query = `?dateRange=${range}`;
+    if (dept) query += `&department=${encodeURIComponent(dept)}`;
+    if (search) query += `&search=${encodeURIComponent(search)}`;
+    
+    if (range === 'custom') {
+      const start = document.getElementById('filter-start').value;
+      const end = document.getElementById('filter-end').value;
+      if (start && end) {
+        query += `&startDate=${start}&endDate=${end}`;
+      }
+    }
+    return query;
+  }
+
+  function debounce(func, wait) {
+    let timeout;
+    return function() {
+      const context = this, args = arguments;
+      clearTimeout(timeout);
+      timeout = setTimeout(() => func.apply(context, args), wait);
+    };
+  }
+
+  async function refreshAll(silent = false) {
+    const query = getQueryString();
+    
+    // Check which tab is currently active to refresh only relevant API sets
+    const activeTab = document.querySelector('.apr-tab-btn.active').getAttribute('onclick').match(/'([^']+)'/)[1];
+    
+    if (!silent) {
+      showLoadingIndicators(activeTab);
+    }
+
+    try {
+      if (activeTab === 'tab-dashboard') {
+        await Promise.all([loadStats(query), loadWorkingHours(query), loadBreakStats(query)]);
+      } else if (activeTab === 'tab-attendance') {
+        await loadLiveAttendance();
+      } else if (activeTab === 'tab-daily') {
+        await loadDailyLogins(query);
+      } else if (activeTab === 'tab-history') {
+        await loadLoginHistory(query);
+      } else if (activeTab === 'tab-analytics') {
+        await loadAnalytics();
+      } else if (activeTab === 'tab-performance') {
+        await loadPerformanceScorecard(query);
+      } else if (activeTab === 'tab-leaderboard') {
+        await loadLeaderboard();
+      } else if (activeTab === 'tab-breaks') {
+        await loadLiveBreaks();
+      }
+    } catch (e) {
+      console.error('Refresh error: ', e);
+    }
+  }
+
+  function showLoadingIndicators(tab) {
+    const targets = {
+      'tab-dashboard': ['grid-attendance', 'grid-realtime', 'grid-performance', 'breaks-kpi-grid', 'hours-kpi-grid'],
+      'tab-attendance': 'attendance-tbody',
+      'tab-daily': 'daily-tbody',
+      'tab-history': 'history-tbody',
+      'tab-performance': 'performance-tbody',
+      'tab-leaderboard': 'leaderboard-tbody',
+      'tab-breaks': 'breaks-tbody'
+    };
+    const targetVal = targets[tab];
+    if (targetVal) {
+      const ids = Array.isArray(targetVal) ? targetVal : [targetVal];
+      ids.forEach(elementId => {
+        const el = document.getElementById(elementId);
+        if (el) {
+          if (el.tagName === 'TBODY') {
+            el.innerHTML = `<tr><td colspan="15" style="text-align:center;color:var(--text-muted);">Fetching records...</td></tr>`;
+          } else {
+            el.innerHTML = `<div style="text-align:center;padding:12px;color:var(--text-muted);font-size:12px;">Loading...</div>`;
+          }
+        }
+      });
+    }
+  }
+
+  function switchTab(tabId) {
+    document.querySelectorAll('.apr-tab-btn').forEach(btn => {
+      const onclickAttr = btn.getAttribute('onclick') || '';
+      btn.classList.toggle('active', onclickAttr.includes(tabId));
+    });
+    document.querySelectorAll('.apr-tab-panel').forEach(p => {
+      p.classList.toggle('active', p.id === tabId);
+    });
+    refreshAll();
+  }
+
+  // ── Stats Loader ──
+  async function loadStats(query) {
+    const res = await api.get(`/apr/admin/dashboard${query}`);
+    if (!res?.ok) return;
+    const d = res.data.data;
+    
+    const attendanceKPIs = [
+      { title: 'Total Employees', val: d.totalEmployees, sub: 'Active staff list', color: 'blue', icon: '👥' },
+      { title: 'Present Today', val: d.presentToday, sub: 'At least 1 active session', color: 'green', icon: '✅' },
+      { title: 'Absent Today', val: d.absentToday, sub: 'Not logged in yet', color: 'rose', icon: '❌' },
+      { title: 'Attendance Rate', val: `${d.attendancePercentage}%`, sub: 'Present vs Total staff', color: 'green', icon: '📈' }
+    ];
+
+    const realtimeKPIs = [
+      { title: 'Employees Online', val: d.employeesOnline, sub: 'Active right now', color: 'green', icon: '🟢' },
+      { title: 'Employees Offline', val: d.employeesOffline, sub: 'Disconnected', color: 'slate', icon: '⚪' },
+      { title: 'Active Sessions', val: d.activeSessions, sub: 'Open connections', color: 'blue', icon: '⚡' },
+      { title: 'Employees on Break', val: d.employeesOnBreak, sub: 'Away from desk', color: 'amber', icon: '☕' },
+      { title: 'Logged In Today', val: d.loggedInToday, sub: 'Total login actions', color: 'blue', icon: '📥' },
+      { title: 'Logged Out Today', val: d.loggedOutToday, sub: 'Total logout actions', color: 'rose', icon: '📤' }
+    ];
+
+    const performanceKPIs = [
+      { title: 'Average Login Time', val: d.averageLoginTime, sub: 'First login avg', color: 'blue', icon: '🕒' },
+      { title: 'Average Logout Time', val: d.averageLogoutTime, sub: 'Last logout avg', color: 'rose', icon: '🕒' },
+      { title: 'Average Working Hours', val: `${d.averageWorkingHours}h`, sub: 'Per present employee', color: 'green', icon: '⏱️' },
+      { title: 'Total Working Hours Today', val: `${d.totalWorkingHoursToday}h`, sub: 'Today cumulative', color: 'green', icon: '📊' },
+      { title: 'Productivity Score', val: `${d.productivityScore}/100`, sub: 'Score cumulative', color: 'purple', icon: '🎯' }
+    ];
+
+    const makeCardHtml = k => `
+      <div class="apr-stat-card apr-stat-${k.color}">
+        <div class="apr-stat-header">
+          <span>${k.title}</span>
+          <span class="apr-stat-icon">${k.icon}</span>
+        </div>
+        <div class="apr-stat-val">${k.val}</div>
+        <div class="apr-stat-sub">${k.sub}</div>
+      </div>
+    `;
+
+    document.getElementById('grid-attendance').innerHTML = attendanceKPIs.map(makeCardHtml).join('');
+    document.getElementById('grid-realtime').innerHTML = realtimeKPIs.map(makeCardHtml).join('');
+    document.getElementById('grid-performance').innerHTML = performanceKPIs.map(makeCardHtml).join('');
+  }
+
+  // ── Hours Loader ──
+  async function loadWorkingHours(query) {
+    const res = await api.get(`/apr/admin/working-hours${query}`);
+    if (!res?.ok) return;
+    const d = res.data.data;
+    
+    document.getElementById('hours-kpi-grid').innerHTML = `
+      <div class="score-card">
+        <span class="apr-filter-label">Total Login Hours</span>
+        <div class="apr-stat-val" style="font-size:22px;">${d.loginHours} hrs</div>
+      </div>
+      <div class="score-card">
+        <span class="apr-filter-label">Productive Hours</span>
+        <div class="apr-stat-val" style="font-size:22px;color:#22c55e;">${d.productiveHours} hrs</div>
+      </div>
+      <div class="score-card">
+        <span class="apr-filter-label">Idle Hours</span>
+        <div class="apr-stat-val" style="font-size:22px;color:var(--text-secondary);">${d.idleHours} hrs</div>
+      </div>
+      <div class="score-card">
+        <span class="apr-filter-label">Overtime Hours</span>
+        <div class="apr-stat-val" style="font-size:22px;color:#3b82f6;">${d.overtime} hrs</div>
+      </div>
+    `;
+  }
+
+  // ── Break Stats Loader ──
+  async function loadBreakStats(query) {
+    const res = await api.get(`/apr/admin/break-analytics${query}`);
+    if (!res?.ok) return;
+    const d = res.data.data;
+    
+    document.getElementById('breaks-kpi-grid').innerHTML = `
+      <div class="score-card">
+        <span class="apr-filter-label">Tea / Lunch Breaks</span>
+        <div class="apr-stat-val" style="font-size:20px;">☕ ${d.teaCount} | 🍴 ${d.lunchCount}</div>
+      </div>
+      <div class="score-card">
+        <span class="apr-filter-label">Personal / Meetings</span>
+        <div class="apr-stat-val" style="font-size:20px;">👤 ${d.personalCount} | 👥 ${d.meetingCount}</div>
+      </div>
+      <div class="score-card">
+        <span class="apr-filter-label">Avg / Total Duration</span>
+        <div class="apr-stat-val" style="font-size:20px;color:#f59e0b;">${d.averageBreakTime}m | ${d.totalBreakTime}m</div>
+      </div>
+      <div class="score-card">
+        <span class="apr-filter-label">Longest / Shortest</span>
+        <div class="apr-stat-val" style="font-size:20px;">Max ${d.longestBreak}m | Min ${d.shortestBreak}m</div>
+      </div>
+    `;
+  }
+
+  // ── Live Attendance Loader ──
+  async function loadLiveAttendance() {
+    const dept = document.getElementById('filter-dept').value;
+    const search = document.getElementById('filter-search').value;
+    let query = `?sortBy=${rosterSortBy}&sortDir=${rosterSortDir}`;
+    if (dept) query += `&department=${encodeURIComponent(dept)}`;
+    if (search) query += `&search=${encodeURIComponent(search)}`;
+
+    const res = await api.get(`/apr/admin/live-attendance${query}`);
+    if (!res?.ok) return;
+    
+    const tbody = document.getElementById('attendance-tbody');
+    if (res.data.data.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--text-muted);">No employees found matching filter settings.</td></tr>`;
+      return;
+    }
+
+    const fmtT = t => t ? new Date(t).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) : '—';
+    const fmtA = t => t ? new Date(t).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }) : '—';
+
+    tbody.innerHTML = res.data.data.map(r => {
+      let statusClass = 'offline';
+      if (r.current_status === 'Available' || r.current_status === 'Idle') statusClass = 'online';
+      else if (r.current_status === 'On Break') statusClass = 'on-break';
+      else if (r.current_status === 'Logged Out') statusClass = 'logged-out';
+      else if (r.current_status === 'Auto Deactivated') statusClass = 'auto-deactivated';
+      else if (r.current_status === 'Manual Override') statusClass = 'manual-override';
+
+      let attClass = r.attendance_status === 'Present' ? 'online' : (r.attendance_status === 'Late' ? 'on-break' : 'logged-out');
+
+      return `
+        <tr>
+          <td><strong>#${r.employee_id}</strong></td>
+          <td>${r.employee_name}</td>
+          <td>${fmtT(r.login_time)}</td>
+          <td>${fmtT(r.logout_time)}</td>
+          <td><span class="status-badge ${statusClass}">${r.current_status}</span></td>
+          <td>${r.working_hours} hrs</td>
+          <td>${r.break_time} mins</td>
+          <td>${r.active_session}</td>
+          <td>${fmtA(r.last_activity)}</td>
+          <td><span class="status-badge ${attClass}">${r.attendance_status}</span></td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  function sortRoster(field) {
+    if (rosterSortBy === field) {
+      rosterSortDir = rosterSortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      rosterSortBy = field;
+      rosterSortDir = 'asc';
+    }
+    loadLiveAttendance();
+  }
+
+  // ── Daily Logins Loader ──
+  async function loadDailyLogins(query) {
+    const res = await api.get(`/apr/admin/daily-report${query}`);
+    if (!res?.ok) return;
+    
+    const tbody = document.getElementById('daily-tbody');
+    if (res.data.data.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--text-muted);">No records found.</td></tr>`;
+      return;
+    }
+
+    const fmtT = t => t ? new Date(t).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) : '—';
+    const fmtD = d => new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+
+    tbody.innerHTML = res.data.data.map(r => `
+      <tr>
+        <td><strong>${r.employee_name}</strong></td>
+        <td>${fmtD(r.work_date)}</td>
+        <td>${fmtT(r.login_time)}</td>
+        <td>${fmtT(r.logout_time)}</td>
+        <td>${r.total_sessions}</td>
+        <td>${r.total_working_hours} hrs</td>
+        <td>${r.overtime} hrs</td>
+        <td>${r.break_duration} mins</td>
+        <td><span class="status-badge ${r.late_login === 'Yes' ? 'logged-out' : 'online'}">${r.late_login === 'Yes' ? 'Late' : 'On Time'}</span></td>
+        <td><span class="status-badge ${r.early_logout === 'Yes' ? 'on-break' : 'online'}">${r.early_logout === 'Yes' ? 'Early' : 'Regular'}</span></td>
+      </tr>
+    `).join('');
+  }
+
+  // ── Login History Loader ──
+  async function loadLoginHistory(query) {
+    const res = await api.get(`/apr/admin/login-history${query}`);
+    if (!res?.ok) return;
+
+    const tbody = document.getElementById('history-tbody');
+    if (res.data.data.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--text-muted);">No session records.</td></tr>`;
+      return;
+    }
+
+    const fmtD = d => new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+    const fmtT = t => t ? new Date(t).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) : '—';
+
+    tbody.innerHTML = res.data.data.map(r => `
+      <tr>
+        <td><strong>${r.employee_name}</strong></td>
+        <td>${fmtD(r.login_date)}</td>
+        <td>${fmtT(r.login_time)}</td>
+        <td>${fmtT(r.logout_time)}</td>
+        <td>${r.session_duration} hrs</td>
+        <td><code style="font-size:11px;">${r.ip_address || '—'}</code></td>
+        <td>${r.browser || '—'}</td>
+        <td>${r.os || '—'} (${r.device || 'Desktop'})</td>
+        <td>${r.location}</td>
+      </tr>
+    `).join('');
+  }
+
+  // ── Performance scorecard ──
+  async function loadPerformanceScorecard(query) {
+    const res = await api.get(`/apr/admin/performance${query}`);
+    if (!res?.ok) return;
+
+    const tbody = document.getElementById('performance-tbody');
+    if (res.data.data.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;color:var(--text-muted);">No performance metrics calculated.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = res.data.data.map(r => `
+      <tr>
+        <td><strong>#${r.employee_id}</strong></td>
+        <td><strong>${r.employee_name}</strong></td>
+        <td>${r.customers_added}</td>
+        <td>${r.loans_submitted}</td>
+        <td>${r.loans_approved}</td>
+        <td>${r.loans_rejected}</td>
+        <td>${r.loans_disbursed}</td>
+        <td>${r.conversion_rate}%</td>
+        <td>${r.avg_processing_time} hrs</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div class="score-progress-bar" style="width:60px;">
+              <div class="score-progress-val" style="width:${r.productivity_score}%; background:#3b82f6;"></div>
+            </div>
+            <span><strong>${r.productivity_score}</strong>/100</span>
+          </div>
+        </td>
+        <td>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div class="score-progress-bar" style="width:60px;">
+              <div class="score-progress-val" style="width:${r.attendance_score}%; background:#22c55e;"></div>
+            </div>
+            <span><strong>${r.attendance_score}</strong>/100</span>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  // ── Leaderboard Loader ──
+  async function loadLeaderboard() {
+    const res = await api.get('/apr/admin/leaderboard');
+    if (!res?.ok) return;
+
+    const tbody = document.getElementById('leaderboard-tbody');
+    if (res.data.data.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--text-muted);">No rankings today.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = res.data.data.map(r => {
+      let badgeClass = 'badge-normal';
+      let badgeText = '—';
+      if (r.badge === 'Gold') { badgeClass = 'badge-gold'; badgeText = '🥇 Gold'; }
+      else if (r.badge === 'Silver') { badgeClass = 'badge-silver'; badgeText = '🥈 Silver'; }
+      else if (r.badge === 'Bronze') { badgeClass = 'badge-bronze'; badgeText = '🥉 Bronze'; }
+
+      return `
+        <tr>
+          <td><span class="badge-rank ${r.rank <= 3 ? (r.rank === 1 ? 'badge-gold' : (r.rank === 2 ? 'badge-silver' : 'badge-bronze')) : 'badge-normal'}">${r.rank}</span></td>
+          <td><strong>${r.employee_name}</strong></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="score-progress-bar" style="width:80px;">
+                <div class="score-progress-val" style="width:${r.performance_score}%; background:linear-gradient(90deg, #8b5cf6, #3b82f6);"></div>
+              </div>
+              <span><strong>${r.performance_score}</strong>/100</span>
+            </div>
+          </td>
+          <td>${r.attendance_score}%</td>
+          <td>${r.productivity}%</td>
+          <td>${r.working_hours} hrs</td>
+          <td>${r.loans_processed} applications</td>
+          <td><span class="status-badge ${r.badge ? r.badge.toLowerCase() : 'offline'}">${badgeText}</span></td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  // ── Live Break Monitor ──
+  async function loadLiveBreaks() {
+    const res = await api.get('/apr/admin/live-breaks');
+    if (!res?.ok) return;
+
+    const tbody = document.getElementById('breaks-tbody');
+    if (res.data.data.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--text-muted);">No breaks recorded today.</td></tr>`;
+      return;
+    }
+
+    const fmtT = t => t ? new Date(t).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) : '—';
+
+    tbody.innerHTML = res.data.data.map(r => {
+      const active = r.status === 'On Break';
+      return `
+        <tr>
+          <td><strong>#${r.employee_id}</strong></td>
+          <td>${r.employee_name}</td>
+          <td><strong>${r.break_type}</strong></td>
+          <td>${fmtT(r.start_time)}</td>
+          <td>${fmtT(r.end_time)}</td>
+          <td><span style="font-weight:${active ? 'bold' : 'normal'}; color:${active ? '#f59e0b' : 'inherit'};">${r.duration} mins ${active ? '(Active)' : ''}</span></td>
+          <td><span class="status-badge ${active ? 'on-break' : 'online'}">${active ? 'On Break' : 'Completed'}</span></td>
+          <td><span style="font-size:12px;color:var(--text-secondary);">${r.remarks}</span></td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  // ── Analytics Charts ──
+  async function loadAnalytics() {
+    const res = await api.get('/apr/admin/analytics');
+    if (!res?.ok) return;
+    const d = res.data.data;
+
+    // Destory existing charts to prevent memory leaks
+    Object.keys(charts).forEach(key => {
+      if (charts[key]) {
+        charts[key].destroy();
+      }
+    });
+
+    const optionsCommon = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        x: { grid: { display: false } },
+        y: { grid: { color: 'rgba(0,0,0,0.05)' } }
+      }
+    };
+
+    // 1. Attendance Trend Chart
+    const ctxTrend = document.getElementById('chart-attendance-trend').getContext('2d');
+    charts.trend = new Chart(ctxTrend, {
+      type: 'line',
+      data: {
+        labels: d.labels.map(l => new Date(l).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })),
+        datasets: [
+          { label: 'Present', data: d.presentTrend, borderColor: '#22c55e', backgroundColor: 'rgba(34, 197, 94, 0.1)', tension: 0.3, fill: true },
+          { label: 'Absent', data: d.absentTrend, borderColor: '#f43f5e', backgroundColor: 'rgba(244, 63, 94, 0.05)', tension: 0.3 }
+        ]
+      },
+      options: {
+        ...optionsCommon,
+        plugins: { legend: { display: true } }
+      }
+    });
+
+    // 2. Online Ratios Doughnut Chart
+    const ctxOnline = document.getElementById('chart-online-ratio').getContext('2d');
+    charts.online = new Chart(ctxOnline, {
+      type: 'doughnut',
+      data: {
+        labels: ['Online', 'Offline'],
+        datasets: [{
+          data: [d.ratios.online, d.ratios.offline],
+          backgroundColor: ['#22c55e', '#94a3b8'],
+          borderWidth: 0
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: true, position: 'bottom' }
+        }
+      }
+    });
+
+    // 3. Working Hours Trend Chart
+    const ctxHrs = document.getElementById('chart-working-trend').getContext('2d');
+    charts.hrs = new Chart(ctxHrs, {
+      type: 'bar',
+      data: {
+        labels: d.labels.map(l => new Date(l).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })),
+        datasets: [{
+          label: 'Avg Hours',
+          data: d.avgWorkHoursTrend,
+          backgroundColor: '#3b82f6',
+          borderRadius: 4
+        }]
+      },
+      options: optionsCommon
+    });
+
+    // 4. Department-wise Presence Chart
+    const ctxDept = document.getElementById('chart-department-presence').getContext('2d');
+    charts.dept = new Chart(ctxDept, {
+      type: 'bar',
+      data: {
+        labels: d.departmentAttendance.map(a => a.department),
+        datasets: [{
+          label: 'Staff Count',
+          data: d.departmentAttendance.map(a => a.count),
+          backgroundColor: '#a855f7',
+          borderRadius: 4
+        }]
+      },
+      options: optionsCommon
+    });
+  }
+
+  // ── Export functionality ──
+  function exportTable(tableId, format) {
+    const table = document.getElementById(tableId);
+    if (!table) return;
+
+    if (format === 'CSV' || format === 'Excel') {
+      const wb = XLSX.utils.table_to_book(table, { sheet: "Sheet JS" });
+      if (format === 'CSV') {
+        const csvContent = XLSX.utils.sheet_to_csv(wb.Sheets[wb.SheetNames[0]]);
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.setAttribute("download", `${tableId}_export_${Date.now()}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else {
+        XLSX.writeFile(wb, `${tableId}_export_${Date.now()}.xlsx`);
+      }
+    } else if (format === 'PDF') {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('l', 'pt', 'a4');
+      doc.autoTable({ html: `#${tableId}` });
+      doc.save(`${tableId}_export_${Date.now()}.pdf`);
+    }
+  }
+</script>
+</body>
+</html>

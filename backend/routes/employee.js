@@ -23,6 +23,7 @@ router.delete('/documents/:id', employeeController.deleteDocument);
 
 // Loans
 router.get('/loans', employeeController.getLoans);
+router.get('/loans/:id', employeeController.getLoanDetail);
 router.post('/loans', employeeController.createLoan);
 router.patch('/loans/:id/status', employeeController.updateLoanStatus);
 router.delete('/loans/:id', employeeController.deleteLoan);

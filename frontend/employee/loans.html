@@ -10,6 +10,170 @@
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
   <link rel="stylesheet" href="/css/styles.css" />
+  <style>
+    /* ── Update Status Side Drawer ───────────────────────── */
+    .status-drawer-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      z-index: 1100;
+      backdrop-filter: blur(2px);
+    }
+    .status-drawer-overlay.show { display: flex; align-items: stretch; justify-content: flex-end; }
+
+    .status-drawer {
+      width: 520px;
+      max-width: 100vw;
+      background: var(--surface);
+      display: flex;
+      flex-direction: column;
+      box-shadow: -8px 0 40px rgba(0,0,0,0.35);
+      animation: slideInRight 0.28s ease;
+      overflow: hidden;
+    }
+    @keyframes slideInRight {
+      from { transform: translateX(100%); opacity: 0; }
+      to   { transform: translateX(0);    opacity: 1; }
+    }
+
+    .drawer-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark, #081e3f) 100%);
+      flex-shrink: 0;
+    }
+    .drawer-header h3 { color: #fff; font-size: 16px; margin: 0; }
+    .drawer-header .drawer-subtitle { color: rgba(255,255,255,0.72); font-size: 13px; margin-top: 2px; }
+    .drawer-close {
+      background: rgba(255,255,255,0.15);
+      border: none;
+      color: #fff;
+      border-radius: 8px;
+      width: 32px; height: 32px;
+      cursor: pointer;
+      font-size: 16px;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.2s;
+    }
+    .drawer-close:hover { background: rgba(255,255,255,0.28); }
+
+    .drawer-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .drawer-section-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+      margin-bottom: 2px;
+    }
+
+    /* Date fields grid */
+    .date-fields-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .date-fields-grid .form-group { margin-bottom: 0; }
+
+    /* History Timeline */
+    .history-timeline {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+    .history-item {
+      display: flex;
+      gap: 12px;
+      position: relative;
+      padding-bottom: 16px;
+    }
+    .history-item:last-child { padding-bottom: 0; }
+    .history-item:not(:last-child)::before {
+      content: '';
+      position: absolute;
+      left: 11px;
+      top: 22px;
+      bottom: 0;
+      width: 2px;
+      background: var(--border);
+    }
+    .history-dot {
+      width: 24px; height: 24px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+      flex-shrink: 0;
+      position: relative;
+      z-index: 1;
+    }
+    .history-content { flex: 1; min-width: 0; }
+    .history-status-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .history-status-name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+    .history-date { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .history-notes { font-size: 12px; color: var(--text-secondary); margin-top: 4px; font-style: italic; }
+
+    .no-history { font-size: 13px; color: var(--text-muted); text-align: center; padding: 20px 0; }
+
+    .drawer-footer {
+      padding: 16px 24px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      flex-shrink: 0;
+      background: var(--surface);
+    }
+
+    /* Status dot colors */
+    .dot-pending    { background: rgba(245,158,11,0.18); color: #d97706; border: 2px solid #d97706; }
+    .dot-approved   { background: rgba(16,185,129,0.18); color: #059669; border: 2px solid #059669; }
+    .dot-rejected   { background: rgba(239,68,68,0.18);  color: #dc2626; border: 2px solid #dc2626; }
+    .dot-disbursed  { background: rgba(99,102,241,0.18); color: #6366f1; border: 2px solid #6366f1; }
+    .dot-review     { background: rgba(59,130,246,0.18); color: #3b82f6; border: 2px solid #3b82f6; }
+    .dot-docs       { background: rgba(249,115,22,0.18); color: #ea580c; border: 2px solid #ea580c; }
+    .dot-cancelled  { background: rgba(107,114,128,0.18);color: #6b7280; border: 2px solid #6b7280; }
+    .dot-hold       { background: rgba(234,179,8,0.18);  color: #ca8a04; border: 2px solid #ca8a04; }
+    .dot-abnd       { background: rgba(239,68,68,0.12);  color: #b91c1c; border: 2px solid #b91c1c; }
+    .dot-other      { background: rgba(99,102,241,0.12); color: #7c3aed; border: 2px solid #7c3aed; }
+
+    @media (max-width: 560px) {
+      .status-drawer { width: 100vw; }
+      .date-fields-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ── Textarea inside drawer ───────────────────────── */
+    .status-drawer textarea.form-control {
+      display: block;
+      width: 100%;
+      min-height: 160px;
+      height: auto;
+      resize: vertical;
+      line-height: 1.5;
+      font-family: inherit;
+      font-size: 14px;
+      padding: 12px 14px;
+      box-sizing: border-box;
+    }
+
+    /* Ensure each drawer section is block and never collapses */
+    .drawer-body > div {
+      display: block;
+      width: 100%;
+    }
+  </style>
 </head>
 <body>
 <div class="app-layout">
@@ -25,7 +189,12 @@
         <div class="nav-section-title">Main</div>
         <a href="/employee/dashboard.html" class="nav-item"><span class="nav-icon emoji-sm">📊</span> Dashboard</a>
         <a href="/employee/add-customer.html" class="nav-item"><span class="nav-icon emoji-sm">➕</span> Add Customer</a>
+        <a href="/employee/my-customers.html" class="nav-item"><span class="nav-icon emoji-sm">👥</span> My Customers</a>
         <a href="/employee/loans.html" class="nav-item active"><span class="nav-icon emoji-sm">💼</span> My Loans</a>
+        <a href="/employee/emi-calculator.html" class="nav-item"><span class="nav-icon emoji-sm">🧮</span> EMI Calculator</a>
+        <a href="/employee/data-excel.html" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/></svg></span> My Assigned Data</a>
+        <a href="/employee/apr.html" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span> APR</a>
+
       </div>
     </nav>
     <div class="sidebar-footer">
@@ -45,7 +214,6 @@
       <button class="mobile-menu-btn" onclick="toggleMobileSidebar()" title="Toggle menu">☰</button>
       <div class="topbar-title"><h2><span class="emoji">💼</span>My Loans</h2><p>Create, track and manage loan applications</p></div>
       <div class="topbar-actions">
-        <button class="btn btn-primary btn-sm" onclick="openCreateModal()"><span class="emoji-sm">➕</span>New Loan</button>
       </div>
     </div>
 
@@ -56,8 +224,13 @@
         <select id="status-filter" onchange="loadLoans()">
           <option value="">All Status</option>
           <option value="Pending">Pending</option>
+          <option value="Under Review">Under Review</option>
+          <option value="Documents Pending">Documents Pending</option>
           <option value="Approved">Approved</option>
           <option value="Rejected">Rejected</option>
+          <option value="Loan Disbursed">Loan Disbursed</option>
+          <option value="Cancelled">Cancelled</option>
+          <option value="Hold">Hold</option>
           <option value="ABND">ABND</option>
           <option value="Other">Other</option>
         </select>
@@ -66,14 +239,26 @@
           <option value="week">This Week</option>
           <option value="month">This Month</option>
           <option value="year">This Year</option>
+          <option value="custom">Custom Date Range</option>
         </select>
+        <div id="custom-date-container" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;">
+          <input type="date" id="start-date" onchange="loadLoans()" style="max-width:135px;padding:6px 10px;font-size:13px;" />
+          <span style="color:var(--text-secondary);font-size:13px;">to</span>
+          <input type="date" id="end-date" onchange="loadLoans()" style="max-width:135px;padding:6px 10px;font-size:13px;" />
+        </div>
+        <input type="text" id="loan-search" class="form-control" placeholder="Search by name or phone..." style="width:220px;padding:6px 12px;font-size:13px;" oninput="filterLoans()" />
       </div>
 
       <div class="card full-table">
-        <div class="card-header" style="display:flex;align-items:center;gap:12px;">
+        <div class="card-header" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
           <h3><span class="emoji-sm">💼</span>Loan Applications</h3>
           <button class="btn btn-danger btn-sm" id="delete-mode-btn" onclick="toggleDeleteMode()">Delete</button>
           <button class="btn btn-secondary btn-sm" id="cancel-delete-btn" onclick="cancelDeleteMode()" style="display:none;">Cancel</button>
+          <span id="active-filter-badge" class="active-filter-badge" style="display:none;" title="Click × to clear filter">
+            <i data-lucide="filter" style="width:12px;height:12px;"></i>
+            <span id="active-filter-badge-text"></span>
+            <span class="filter-badge-close" onclick="clearStatusFilter()" title="Clear filter" aria-label="Clear filter">×</span>
+          </span>
           <span id="count-badge" class="badge badge-employee" style="margin-left:auto;">— loans</span>
         </div>
         <div class="table-wrapper">
@@ -86,13 +271,16 @@
                 <th>Phone</th>
                 <th>Area</th>
                 <th>Amount</th>
-                <th>Purpose</th>
+                <th>Banks</th>
                 <th>Status</th>
-                <th>Date</th>
+                <th>Login Date</th>
+                <th>Upload Date</th>
+                <th>Disbursement Date</th>
+                <th>Disbursement Amount</th>
                 <th>Actions</th>
               </tr>
             </thead>
-            <tbody id="loans-tbody"><tr><td colspan="10" class="text-center text-muted">Loading...</td></tr></tbody>
+            <tbody id="loans-tbody"><tr><td colspan="13" class="text-center text-muted">Loading...</td></tr></tbody>
           </table>
         </div>
         <div id="delete-action-bar" style="display:none;padding:12px 16px;background:rgba(239,68,68,0.1);border-top:1px solid var(--border);flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;">
@@ -104,9 +292,9 @@
   </main>
 </div>
 
-<!-- Create Loan Modal -->
+<!-- ── Create Loan Modal ── -->
 <div class="modal-overlay" id="create-modal">
-  <div class="modal">
+  <div class="modal modal-overflow-visible">
     <div class="modal-header">
       <h3>New Loan Application</h3>
       <button class="modal-close" onclick="closeCreateModal()">✕</button>
@@ -118,17 +306,44 @@
       <p id="loan-customer-display" style="font-size:14px;color:var(--text-primary);margin:8px 0;">—</p>
     </div>
     <div class="form-group"><label>Loan Amount (₹) *</label><input type="number" id="loan-amount" class="form-control" placeholder="e.g. 50000" min="1000" /></div>
-    <div class="form-group"><label>Purpose</label>
-      <select id="loan-purpose" class="form-control" onchange="togglePurposeOther()">
-        <option value="">Select purpose (optional)</option>
-        <option value="Home Renovation">Home Renovation</option>
-        <option value="Business">Business</option>
-        <option value="Education">Education</option>
-        <option value="Medical">Medical</option>
-        <option value="Debt Consolidation">Debt Consolidation</option>
-        <option value="Other">Other (specify below)</option>
-      </select>
-      <textarea id="loan-purpose-other" class="form-control" rows="2" placeholder="If 'Other', type purpose here" style="margin-top:8px;display:none;"></textarea>
+    <div class="form-group"><label>NBFCs Banks</label>
+      <div class="custom-select-wrapper">
+        <input type="hidden" id="loan-purpose" value="" />
+        <div class="custom-select-trigger" onclick="toggleCustomSelect(event)" id="custom-select-trigger">
+          <span id="custom-select-text">Banks (optional)</span>
+          <span class="custom-select-arrow" style="font-size:10px;color:var(--text-muted);transition:transform 0.2s ease;">▼</span>
+        </div>
+        <div class="custom-select-options" id="custom-select-options">
+          <div class="custom-select-search-wrapper" onclick="event.stopPropagation()">
+            <input type="text" id="custom-select-search" class="custom-select-search-input" placeholder="~Search bank" oninput="filterCustomOptions(this.value)" autocomplete="off" />
+          </div>
+          <div class="custom-options-list" id="custom-options-list">
+            <div class="custom-option" data-value="" onclick="selectCustomOption(this)">Banks (optional)</div>
+            <div class="custom-option" data-value="BAJAJ FIN" onclick="selectCustomOption(this)">Bajaj Finance</div>
+            <div class="custom-option" data-value="MMFSL" onclick="selectCustomOption(this)">Mahindra Finance</div>
+            <div class="custom-option" data-value="SFL" onclick="selectCustomOption(this)">Shriram Finance</div>
+            <div class="custom-option" data-value="CHOLA" onclick="selectCustomOption(this)">Chola Finance</div>
+            <div class="custom-option" data-value="MUTHOOT" onclick="selectCustomOption(this)">Muthoot Finance</div>
+            <div class="custom-option" data-value="MANAPPURAM" onclick="selectCustomOption(this)">Manappuram Finance</div>
+            <div class="custom-option" data-value="LICHF" onclick="selectCustomOption(this)">LIC Housing Finance</div>
+            <div class="custom-option" data-value="TATA CAP" onclick="selectCustomOption(this)">Tata Capital</div>
+            <div class="custom-option" data-value="ABFL" onclick="selectCustomOption(this)">Aditya Birla Finance</div>
+            <div class="custom-option" data-value="LTF" onclick="selectCustomOption(this)">L&T Finance</div>
+            <div class="custom-option" data-value="POONAWALLA" onclick="selectCustomOption(this)">Poonawalla Fincorp</div>
+            <div class="custom-option" data-value="HDBFS" onclick="selectCustomOption(this)">HDB Financial</div>
+            <div class="custom-option" data-value="SUNDARM" onclick="selectCustomOption(this)">Sundaram Finance</div>
+            <div class="custom-option" data-value="FIVE STAR" onclick="selectCustomOption(this)">Five-Star Finance</div>
+            <div class="custom-option" data-value="UJJIVAN" onclick="selectCustomOption(this)">Ujjivan Bank</div>
+            <div class="custom-option" data-value="AAVAS" onclick="selectCustomOption(this)">Aavas Financiers</div>
+            <div class="custom-option" data-value="CREDITACC" onclick="selectCustomOption(this)">CreditAccess</div>
+            <div class="custom-option" data-value="CAPRI" onclick="selectCustomOption(this)">Capri Global</div>
+            <div class="custom-option" data-value="INDOSTAR" onclick="selectCustomOption(this)">Indostar Capital</div>
+            <div class="custom-option" data-value="JMF" onclick="selectCustomOption(this)">JM Financial</div>
+            <div class="custom-option" data-value="Other" onclick="selectCustomOption(this)">Other</div>
+          </div>
+        </div>
+      </div>
+      <textarea id="loan-purpose-other" class="form-control" rows="2" placeholder="If 'Other', Type Bank Name " style="margin-top:8px;display:none;"></textarea>
     </div>
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="closeCreateModal()">Cancel</button>
@@ -137,29 +352,88 @@
   </div>
 </div>
 
-<!-- Update Status Modal -->
-<div class="modal-overlay" id="status-modal">
-  <div class="modal">
-    <div class="modal-header">
-      <h3>Update Loan Status</h3>
-      <button class="modal-close" onclick="closeStatusModal()">✕</button>
+<!-- ── Update Status Side Drawer ── -->
+<div class="status-drawer-overlay" id="status-drawer-overlay" onclick="closeStatusDrawer(event)">
+  <div class="status-drawer" onclick="event.stopPropagation()">
+    <div class="drawer-header">
+      <div>
+        <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #fff;">Update Loan Status</h3>
+        <div class="drawer-subtitle" style="margin-top: 8px; color: rgba(255,255,255,0.9); font-size: 13px;">
+          <div id="drawer-customer-name" style="margin-bottom: 4px;">Customer: —</div>
+          <div id="drawer-loan-amount">Loan Amount: —</div>
+        </div>
+      </div>
+      <button class="drawer-close" onclick="closeStatusDrawer()">✕</button>
     </div>
-    <div id="status-modal-alert" class="alert"></div>
-    <p id="status-loan-info" style="font-size:14px;color:var(--text-secondary);margin-bottom:20px;"></p>
-    <div class="form-group">
-      <label>New Status *</label>
-      <select id="new-status" class="form-control">
-        <option value="Pending"> Pending</option>
-        <option value="Approved"> Approved</option>
-        <option value="Rejected"> Rejected</option>
-        <option value="ABND"> ABND</option>
-        <option value="Other"> Other</option>
-      </select>
+
+    <div class="drawer-body">
+      <div id="drawer-alert" class="alert"></div>
+
+      <!-- Status -->
+      <div>
+        <div class="drawer-section-title">Status *</div>
+        <div class="form-group" style="margin-bottom:0;">
+          <select id="drawer-new-status" class="form-control" onchange="onStatusChange()">
+            <option value="Pending">⏳ Pending</option>
+            <option value="Under Review">🔍 Under Review</option>
+            <option value="Documents Pending">📋 Documents Pending</option>
+            <option value="Approved">✅ Approved</option>
+            <option value="Rejected">❌ Rejected</option>
+            <option value="Loan Disbursed">💰 Loan Disbursed</option>
+            <option value="Cancelled">🚫 Cancelled</option>
+            <option value="Hold">⏸️ Hold</option>
+            <option value="ABND">🗑️ ABND</option>
+            <option value="Other">📌 Other</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Remarks -->
+      <div>
+        <div class="drawer-section-title">Remarks / Notes *</div>
+        <div class="form-group" style="margin-bottom:0;">
+          <textarea id="drawer-notes" class="form-control" rows="6" placeholder="Add remarks, notes, follow-up details, bank feedback, customer updates, rejection reasons, approval comments, or any relevant information related to this loan case." style="min-height:160px;resize:vertical;display:block;"></textarea>
+        </div>
+      </div>
+
+      <!-- Date Tracking -->
+      <div>
+        <div class="drawer-section-title">Date Tracking</div>
+        <div class="date-fields-grid">
+          <div class="form-group">
+            <label style="font-size:12px;"><i data-lucide="calendar" style="width: 12px; height: 12px; margin-right: 4px; vertical-align: middle;"></i>Login Date</label>
+            <input type="date" id="drawer-login-date" class="form-control" style="font-size:13px;" />
+          </div>
+          <div class="form-group">
+            <label style="font-size:12px;"><i data-lucide="upload-cloud" style="width: 12px; height: 12px; margin-right: 4px; vertical-align: middle;"></i>System Upload Date</label>
+            <input type="date" id="drawer-upload-date" class="form-control" style="font-size:13px;" />
+          </div>
+          <div class="form-group" id="disbursement-date-group">
+            <label style="font-size:12px;"><i data-lucide="calendar-check" style="width: 12px; height: 12px; margin-right: 4px; vertical-align: middle;"></i>Disbursement Date</label>
+            <input type="date" id="drawer-disbursement-date" class="form-control" style="font-size:13px;" />
+          </div>
+          <div class="form-group" id="disbursement-amount-group">
+            <label style="font-size:12px;"><i data-lucide="indian-rupee" style="width: 12px; height: 12px; margin-right: 4px; vertical-align: middle;"></i>Disbursement Amount</label>
+            <input type="text" id="drawer-disbursement-amount" class="form-control" style="font-size:13px;" placeholder="Enter disbursement amount" />
+          </div>
+        </div>
+      </div>
+
+      <!-- History Timeline -->
+      <div>
+        <div class="drawer-section-title">Status History</div>
+        <div id="drawer-history-container">
+          <div class="no-history">Loading history...</div>
+        </div>
+      </div>
     </div>
-    <div class="form-group"><label>Notes</label><textarea id="status-notes" class="form-control" rows="2" placeholder="Optional remarks..."></textarea></div>
-    <div class="modal-actions">
-      <button class="btn btn-secondary" onclick="closeStatusModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="submitStatusUpdate()" id="status-btn">Update Status</button>
+
+    <div class="drawer-footer">
+      <button class="btn btn-secondary" onclick="closeStatusDrawer()">Cancel</button>
+      <button class="btn btn-primary" id="drawer-update-btn" onclick="submitStatusUpdate()">
+        <span id="drawer-update-btn-spinner" class="spinner" style="display:none; margin-right:6px; vertical-align: middle;"></span>
+        <span id="drawer-update-btn-text">Update Status</span>
+      </button>
     </div>
   </div>
 </div>
@@ -169,20 +443,115 @@
 <script>
   let currentLoanId = null;
   let filterCustomerId = null;
+  let allLoans = [];
   const user = requireRole('employee');
+
+  // Normalise URL ?status param to the exact dropdown option value
+  const STATUS_PARAM_MAP = {
+    'pending': 'Pending',
+    'approved': 'Approved',
+    'rejected': 'Rejected',
+    'abnd': 'ABND',
+    'disbursed': 'Loan Disbursed',
+    'loan disbursed': 'Loan Disbursed',
+    'cancelled': 'Cancelled',
+    'hold': 'Hold',
+    'other': 'Other',
+    'under review': 'Under Review',
+    'documents pending': 'Documents Pending'
+  };
+
   if (user) {
     renderSidebarUser();
-    // Check for customer_id in query params
     const params = new URLSearchParams(location.search);
     filterCustomerId = params.get('customer_id');
-    
-    // If customer_id present, open create modal with auto-fill
+    const openModalParam = params.get('openModal');
+    const statusParam = params.get('status');
+
+    // Apply status URL param to dropdown before first load
+    if (statusParam) {
+      const normalised = STATUS_PARAM_MAP[statusParam.toLowerCase()] || statusParam;
+      const statusFilter = document.getElementById('status-filter');
+      if (statusFilter) {
+        // Find a matching option (case-insensitive)
+        const match = Array.from(statusFilter.options).find(
+          o => o.value.toLowerCase() === normalised.toLowerCase()
+        );
+        if (match) statusFilter.value = match.value;
+      }
+    }
+
     if (filterCustomerId) {
       setTimeout(() => openCreateModal(parseInt(filterCustomerId)), 100);
+    } else if (openModalParam === 'true') {
+      setTimeout(() => openCreateModal(), 100);
     }
-    
     loadLoans();
   }
+
+  // ── Custom Bank Select ────────────────────────────────────
+  function toggleCustomSelect(e) {
+    if (e) e.stopPropagation();
+    const opts = document.getElementById('custom-select-options');
+    const trigger = document.getElementById('custom-select-trigger');
+    const arrow = trigger.querySelector('.custom-select-arrow');
+    const isShowing = opts.classList.contains('show');
+    opts.classList.toggle('show');
+    if (!isShowing) {
+      arrow.style.transform = 'rotate(180deg)';
+      const searchInput = document.getElementById('custom-select-search');
+      searchInput.value = '';
+      filterCustomOptions('');
+      setTimeout(() => searchInput.focus(), 50);
+    } else {
+      arrow.style.transform = 'rotate(0deg)';
+    }
+  }
+
+  function filterCustomOptions(query) {
+    const term = query.toLowerCase().trim();
+    const options = document.querySelectorAll('.custom-option');
+    options.forEach(opt => {
+      const text = opt.textContent.toLowerCase();
+      opt.style.display = (text.includes(term) || opt.getAttribute('data-value') === "") ? 'block' : 'none';
+    });
+  }
+
+  function selectCustomOption(el) {
+    const val = el.getAttribute('data-value');
+    setLoanPurposeValue(val);
+    document.getElementById('custom-select-options').classList.remove('show');
+    const arrow = document.querySelector('.custom-select-arrow');
+    if (arrow) arrow.style.transform = 'rotate(0deg)';
+  }
+
+  function setLoanPurposeValue(val) {
+    document.getElementById('loan-purpose').value = val;
+    const options = document.querySelectorAll('.custom-option');
+    let text = 'Banks (optional)';
+    options.forEach(opt => {
+      if (opt.getAttribute('data-value') === val) {
+        text = opt.textContent;
+        opt.classList.add('active');
+      } else {
+        opt.classList.remove('active');
+      }
+    });
+    document.getElementById('custom-select-text').textContent = text;
+    togglePurposeOther();
+  }
+
+  document.addEventListener('click', (e) => {
+    const wrapper = document.querySelector('.custom-select-wrapper');
+    if (wrapper && !wrapper.contains(e.target)) {
+      const opts = document.getElementById('custom-select-options');
+      if (opts && opts.classList.contains('show')) {
+        opts.classList.remove('show');
+        const arrow = document.querySelector('.custom-select-arrow');
+        if (arrow) arrow.style.transform = 'rotate(0deg)';
+      }
+    }
+  });
 
   function togglePurposeOther() {
     const sel = document.getElementById('loan-purpose');
@@ -191,7 +560,6 @@
     other.style.display = sel.value === 'Other' ? 'block' : 'none';
   }
 
-  // Utility to extract labeled value from pasted details (basic)
   function extractValueByLabel(text, labels) {
     if (!text) return '';
     const lines = text.split(/\r?\n/);
@@ -199,7 +567,7 @@
       const line = raw.trim();
       if (!line) continue;
       for (const label of labels) {
-        const re = new RegExp('^' + label.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&') + '\\s*[:\\-]?\\s*(.+)$', 'i');
+        const re = new RegExp('^' + label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*[:\\-]?\\s*(.+)$', 'i');
         const m = line.match(re);
         if (m && m[1]) return m[1].trim();
       }
@@ -207,23 +575,86 @@
     return '';
   }
 
+  // ── Load Loans ───────────────────────────────────────────
   async function loadLoans() {
     const status = document.getElementById('status-filter').value;
     const period = document.getElementById('period-filter').value;
-    const qs = buildQueryString({ status, period });
+    const periodDateType = 'created_at';
+
+    const customDateContainer = document.getElementById('custom-date-container');
+    let startDate = '', endDate = '';
+    if (period === 'custom') {
+      customDateContainer.style.display = 'flex';
+      startDate = document.getElementById('start-date').value;
+      endDate = document.getElementById('end-date').value;
+      if (startDate && endDate && startDate > endDate) {
+        document.getElementById('loans-tbody').innerHTML = '<tr><td colspan="12" class="text-center text-danger" style="font-weight:500;padding:20px;">⚠️ Start Date cannot be after End Date.</td></tr>';
+        document.getElementById('count-badge').textContent = '0 loans';
+        return;
+      }
+    } else {
+      customDateContainer.style.display = 'none';
+      document.getElementById('start-date').value = '';
+      document.getElementById('end-date').value = '';
+    }
+
+    const qs = buildQueryString({ status, period, startDate, endDate, periodDateType });
     const res = await api.get(`/employee/loans${qs}`);
     if (!res?.ok) return;
-    let list = res.data.data;
-    
-    // Filter by customer_id if provided in URL
+    allLoans = res.data.data;
+
     if (filterCustomerId) {
-      list = list.filter(l => l.customer_id === parseInt(filterCustomerId));
+      allLoans = allLoans.filter(l => l.customer_id === parseInt(filterCustomerId));
     }
-    
+
+    filterLoans();
+  }
+
+  function clearStatusFilter() {
+    const statusFilter = document.getElementById('status-filter');
+    if (statusFilter) statusFilter.value = '';
+    // Also strip the ?status param from the URL without reloading
+    const url = new URL(window.location.href);
+    url.searchParams.delete('status');
+    history.replaceState(null, '', url.toString());
+    loadLoans();
+  }
+
+  function filterLoans() {
+    const q = document.getElementById('loan-search').value.trim().toLowerCase();
+    let list = allLoans;
+    if (q) {
+      list = allLoans.filter(l =>
+        (l.customer_name && l.customer_name.toLowerCase().includes(q)) ||
+        (l.customer_phone && l.customer_phone.includes(q))
+      );
+    }
+
+    // Update active filter badge
+    const activeStatus = document.getElementById('status-filter').value;
+    const badge = document.getElementById('active-filter-badge');
+    const badgeText = document.getElementById('active-filter-badge-text');
+    if (badge && badgeText) {
+      if (activeStatus) {
+        badgeText.textContent = activeStatus;
+        badge.style.display = 'inline-flex';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+
     document.getElementById('count-badge').textContent = `${list.length} loans`;
     const tbody = document.getElementById('loans-tbody');
     if (!list.length) {
-      tbody.innerHTML = `<tr><td colspan="${deleteMode ? 10 : 9}" class="text-center text-muted">No loans found.</td></tr>`;
+      const filterHint = activeStatus ? ` with status "${activeStatus}"` : '';
+      tbody.innerHTML = `<tr><td colspan="${deleteMode ? 14 : 13}" class="text-center text-muted" style="padding:28px 16px;">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+          <i data-lucide="inbox" style="width:32px;height:32px;opacity:0.35;"></i>
+          <span>No loan applications${filterHint} found.</span>
+          ${activeStatus ? `<button class="btn btn-secondary btn-sm" onclick="clearStatusFilter()" style="margin-top:4px;">Clear filter</button>` : ''}
+        </div>
+      </td></tr>`;
+      if (window.lucide) try { lucide.createIcons(); } catch(e) {}
       return;
     }
     tbody.innerHTML = list.map((l, i) => `
@@ -236,26 +667,28 @@
         <td style="font-weight:600;">${formatCurrency(l.amount)}</td>
         <td>${l.purpose || '—'}</td>
         <td>${statusBadge(l.status)}</td>
-        <td>${formatDate(l.created_at)}</td>
-        <td><button class="btn btn-secondary btn-sm" onclick="openStatusModal(${l.id}, '${l.customer_name}', '${l.amount}', '${l.status}')">Update</button></td>
+        <td style="font-size:12px;white-space:nowrap;">${l.login_date ? formatDate(l.login_date) : '<span style="color:var(--text-muted)">—</span>'}</td>
+        <td style="font-size:12px;white-space:nowrap;">${l.system_upload_date ? formatDate(l.system_upload_date) : '<span style="color:var(--text-muted)">—</span>'}</td>
+        <td style="font-size:12px;white-space:nowrap;">${l.disbursement_date ? formatDate(l.disbursement_date) : '<span style="color:var(--text-muted)">—</span>'}</td>
+        <td style="font-size:12px;white-space:nowrap;font-weight:600;">${l.disbursement_amount ? formatCurrency(l.disbursement_amount) : '<span style="color:var(--text-muted)">—</span>'}</td>
+        <td><button class="btn btn-secondary btn-sm" onclick="openStatusDrawer(${l.id})">Update</button></td>
       </tr>`).join('');
 
-    const checkboxCells = document.querySelectorAll('.checkbox-cell');
-    checkboxCells.forEach(cell => {
+    document.querySelectorAll('.checkbox-cell').forEach(cell => {
       cell.style.display = deleteMode ? 'table-cell' : 'none';
     });
   }
 
-  function openCreateModal(customerIdParam = null) { 
+  // ── Create Loan Modal ─────────────────────────────────────
+  function openCreateModal(customerIdParam = null) {
     document.getElementById('create-modal').classList.add('show');
     document.getElementById('loan-customer-display').textContent = '—';
     document.getElementById('loan-amount').value = '';
-    document.getElementById('loan-purpose').value = '';
+    setLoanPurposeValue('');
     document.getElementById('loan-purpose-other').value = '';
     document.getElementById('loan-purpose-other').style.display = 'none';
     document.getElementById('loan-customer').value = '';
-    
-    // If customer_id provided as param (from add-customer page)
+
     if (customerIdParam) {
       api.get('/employee/customers').then(res => {
         if (res?.ok) {
@@ -267,14 +700,11 @@
         }
       });
     }
-    
-    // Auto-fill loan form from quick paste data (sessionStorage)
+
     const autoData = sessionStorage.getItem('cln_auto_loan_data');
     if (autoData) {
       try {
         const data = JSON.parse(autoData);
-        
-        // Only use sessionStorage data if not already set from URL param
         if (!customerIdParam) {
           api.get('/employee/customers').then(res => {
             if (res?.ok) {
@@ -286,37 +716,39 @@
             }
           });
         }
-        
-        if (data.loan_amount) {
-          document.getElementById('loan-amount').value = data.loan_amount;
-        }
-        if (data.full_details) {
-          // Try to extract purpose from pasted block
+        if (data.loan_amount) document.getElementById('loan-amount').value = data.loan_amount;
+        if (data.purpose) {
+          setLoanPurposeValue(data.purpose);
+          if (data.purpose === 'Other' && data.purpose_other) {
+            const otherInput = document.getElementById('loan-purpose-other');
+            if (otherInput) {
+              otherInput.style.display = 'block';
+              otherInput.value = data.purpose_other;
+            }
+          }
+        } else if (data.full_details) {
           const p = extractValueByLabel(data.full_details, ['Purpose', 'Loan Purpose', 'Purpose of Loan']);
           if (p) {
-            // If matches one of options, select it; otherwise put into 'other'
-            const sel = document.getElementById('loan-purpose');
-            const opt = Array.from(sel.options).find(o => o.value.toLowerCase() === p.toLowerCase());
+            const opt = Array.from(document.querySelectorAll('.custom-option')).find(o =>
+              o.getAttribute('data-value').toLowerCase() === p.toLowerCase() || o.textContent.toLowerCase() === p.toLowerCase()
+            );
             if (opt) {
-              sel.value = opt.value;
+              setLoanPurposeValue(opt.getAttribute('data-value'));
             } else {
-              sel.value = 'Other';
+              setLoanPurposeValue('Other');
               const other = document.getElementById('loan-purpose-other');
               other.style.display = 'block';
               other.value = p;
             }
           }
         }
-      } catch (e) {
-        console.error('Failed to parse auto loan data:', e);
-      }
+      } catch (e) { console.error('Failed to parse auto loan data:', e); }
     } else {
-      if (!customerIdParam) {
-        document.getElementById('loan-customer-display').textContent = 'Please add a customer first';
-      }
+      if (!customerIdParam) document.getElementById('loan-customer-display').textContent = 'Please add a customer first';
     }
   }
-  function closeCreateModal() { 
+
+  function closeCreateModal() {
     document.getElementById('create-modal').classList.remove('show');
     document.getElementById('loan-amount').value = '';
   }
@@ -339,29 +771,282 @@
     loadLoans();
   }
 
-  function openStatusModal(id, name, amount, status) {
-    currentLoanId = id;
-    document.getElementById('status-loan-info').textContent = `${name} — ${formatCurrency(amount)}`;
-    const allowedStatus = ['Pending', 'Approved', 'Rejected', 'ABND', 'Other'];
-    document.getElementById('new-status').value = allowedStatus.includes(status) ? status : 'Pending';
-    document.getElementById('status-notes').value = '';
-    document.getElementById('status-modal').classList.add('show');
+  // ── Status Drawer ─────────────────────────────────────────
+  async function openStatusDrawer(loanId) {
+    currentLoanId = loanId;
+    // Reset drawer
+    document.getElementById('drawer-alert').className = 'alert';
+    document.getElementById('drawer-alert').textContent = '';
+    document.getElementById('drawer-customer-name').textContent = 'Loading...';
+    document.getElementById('drawer-loan-amount').textContent = '';
+    document.getElementById('drawer-new-status').value = 'Pending';
+    document.getElementById('drawer-notes').value = '';
+    document.getElementById('drawer-login-date').value = '';
+    document.getElementById('drawer-upload-date').value = '';
+    document.getElementById('drawer-disbursement-date').value = '';
+    document.getElementById('drawer-disbursement-amount').value = '';
+    document.getElementById('drawer-history-container').innerHTML = '<div class="no-history">Loading history...</div>';
+    document.getElementById('drawer-update-btn').disabled = false;
+    const spinner = document.getElementById('drawer-update-btn-spinner');
+    const btnText = document.getElementById('drawer-update-btn-text');
+    if (spinner) spinner.style.display = 'none';
+    if (btnText) btnText.textContent = 'Update Status';
+    document.getElementById('status-drawer-overlay').classList.add('show');
+    document.body.style.overflow = 'hidden';
+
+    // Fetch loan detail + history
+    const res = await api.get(`/employee/loans/${loanId}`);
+    if (!res?.ok) {
+      document.getElementById('drawer-customer-name').textContent = 'Error loading loan.';
+      document.getElementById('drawer-loan-amount').textContent = '';
+      return;
+    }
+
+    const { loan, history } = res.data.data;
+
+    // Populate header
+    document.getElementById('drawer-customer-name').textContent = `Customer: ${loan.customer_name}`;
+    document.getElementById('drawer-loan-amount').textContent = `Loan Amount: ${formatCurrency(loan.amount)}`;
+
+    // Populate status
+    const statusEl = document.getElementById('drawer-new-status');
+    statusEl.value = loan.status || 'Pending';
+
+    // Populate dates
+    if (loan.login_date) document.getElementById('drawer-login-date').value = loan.login_date.substring(0, 10);
+    if (loan.system_upload_date) document.getElementById('drawer-upload-date').value = loan.system_upload_date.substring(0, 10);
+    if (loan.disbursement_date) document.getElementById('drawer-disbursement-date').value = loan.disbursement_date.substring(0, 10);
+
+    // Populate disbursement amount
+    if (loan.disbursement_amount !== undefined && loan.disbursement_amount !== null) {
+      document.getElementById('drawer-disbursement-amount').value = '₹' + Number(loan.disbursement_amount).toLocaleString('en-IN');
+    } else {
+      document.getElementById('drawer-disbursement-amount').value = '';
+    }
+
+    // Toggle visibility based on loaded status
+    onStatusChange();
+
+    // Render history
+    renderHistory(history || []);
   }
-  function closeStatusModal() { document.getElementById('status-modal').classList.remove('show'); }
+
+  function onStatusChange() {
+    const status = document.getElementById('drawer-new-status').value;
+    const dateGroup = document.getElementById('disbursement-date-group');
+    const amountGroup = document.getElementById('disbursement-amount-group');
+    const disbursementInput = document.getElementById('drawer-disbursement-date');
+
+    if (status === 'Loan Disbursed') {
+      dateGroup.style.display = 'block';
+      amountGroup.style.display = 'block';
+      if (!disbursementInput.value) {
+        disbursementInput.value = new Date().toISOString().substring(0, 10);
+      }
+    } else {
+      dateGroup.style.display = 'none';
+      amountGroup.style.display = 'none';
+    }
+
+    // Trigger lucide icons update if loaded
+    if (window.lucide) { try { lucide.createIcons(); } catch(e) {} }
+  }
+
+  function closeStatusDrawer(e) {
+    if (e && e.target !== document.getElementById('status-drawer-overlay')) return;
+    document.getElementById('status-drawer-overlay').classList.remove('show');
+    document.body.style.overflow = '';
+    currentLoanId = null;
+  }
+
+  function getStatusDotClass(status) {
+    const map = {
+      'Pending': 'dot-pending',
+      'Under Review': 'dot-review',
+      'Documents Pending': 'dot-docs',
+      'Approved': 'dot-approved',
+      'Rejected': 'dot-rejected',
+      'Loan Disbursed': 'dot-disbursed',
+      'Cancelled': 'dot-cancelled',
+      'Hold': 'dot-hold',
+      'ABND': 'dot-abnd',
+      'Other': 'dot-other'
+    };
+    return map[status] || 'dot-other';
+  }
+
+  function getStatusInitial(status) {
+    const map = {
+      'Pending': 'P', 'Under Review': 'R', 'Documents Pending': 'D',
+      'Approved': '✓', 'Rejected': '✕', 'Loan Disbursed': '₹',
+      'Cancelled': 'C', 'Hold': 'H', 'ABND': 'A', 'Other': 'O'
+    };
+    return map[status] || '?';
+  }
+
+  function formatDateDDMMYYYY(dateVal) {
+    if (!dateVal) return '—';
+    try {
+      const d = new Date(dateVal);
+      if (isNaN(d.getTime())) return '—';
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      return `${day}-${month}-${year}`;
+    } catch { return '—'; }
+  }
+
+  function formatHistoryDate(dt) {
+    if (!dt) return '—';
+    try {
+      const d = new Date(dt);
+      const day = String(d.getDate()).padStart(2, '0');
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const month = months[d.getMonth()];
+      const year = d.getFullYear();
+      return `${day} ${month} ${year}`;
+    } catch { return '—'; }
+  }
+
+  function formatHistoryTime(dt) {
+    if (!dt) return '—';
+    try {
+      const d = new Date(dt);
+      let hours = d.getHours();
+      const minutes = String(d.getMinutes()).padStart(2, '0');
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12;
+      hours = hours ? hours : 12;
+      const hoursStr = String(hours).padStart(2, '0');
+      return `${hoursStr}:${minutes} ${ampm}`;
+    } catch { return '—'; }
+  }
+
+  function renderHistory(history) {
+    const container = document.getElementById('drawer-history-container');
+    if (!history || !history.length) {
+      container.innerHTML = '<div class="no-history">No history recorded yet.</div>';
+      return;
+    }
+
+    container.innerHTML = `<div class="history-list" style="display: flex; flex-direction: column; gap: 12px; margin-top: 10px;">
+      ${history.map(h => {
+        const dateVal = h.created_at || h.changed_at;
+        const dateStr = formatHistoryDate(dateVal);
+        const timeStr = formatHistoryTime(dateVal);
+        const changedBy = h.updated_by_name || h.changed_by_name || 'System';
+        const remarkVal = h.remark || h.notes || 'Status updated.';
+        
+        let disbInfo = '';
+        if (h.status === 'Loan Disbursed') {
+          const disbDateVal = h.disbursement_date ? formatDateDDMMYYYY(h.disbursement_date) : '—';
+          const disbAmtVal = h.disbursement_amount !== null && h.disbursement_amount !== undefined ? formatCurrency(h.disbursement_amount) : '—';
+          disbInfo = `
+            <div style="font-size: 12px; margin-bottom: 8px; color: var(--text-secondary); line-height: 1.5; background: rgba(99,102,241,0.05); padding: 8px 10px; border-left: 3px solid #6366f1; border-radius: 0 4px 4px 0;">
+              <div><strong>Disbursement Date:</strong> ${disbDateVal}</div>
+              <div><strong>Disbursement Amount:</strong> ${disbAmtVal}</div>
+            </div>
+          `;
+        }
+        
+        return `
+        <div class="history-card" style="border: 1px solid var(--border); border-radius: 8px; padding: 12px; background: var(--bg-secondary); box-shadow: var(--shadow-soft);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px dashed var(--border); padding-bottom: 6px;">
+            ${statusBadge(h.status)}
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 11.5px; color: var(--text-muted); margin-bottom: 8px;">
+            <div><strong>Date:</strong> ${dateStr}</div>
+            <div><strong>Time:</strong> ${timeStr}</div>
+          </div>
+          ${disbInfo}
+          <div style="font-size: 12px; margin-bottom: 8px; line-height: 1.4; background: var(--bg-primary); padding: 8px 10px; border-left: 3px solid var(--accent); border-radius: 0 4px 4px 0;">
+            <strong>Remark:</strong><br>
+            <span style="color: var(--text-primary); white-space: pre-wrap;">${escapeHtml(remarkVal)}</span>
+          </div>
+          <div style="font-size: 11.5px; color: var(--text-secondary);">
+            <strong>Updated By:</strong> ${escapeHtml(changedBy)}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }
+
+  function escapeHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // Dynamic currency formatting for disbursement amount input
+  document.getElementById('drawer-disbursement-amount').addEventListener('input', function(e) {
+    let value = this.value.replace(/[^0-9]/g, '');
+    if (!value) {
+      this.value = '';
+      return;
+    }
+    const num = parseInt(value, 10);
+    this.value = '₹' + num.toLocaleString('en-IN');
+  });
 
   async function submitStatusUpdate() {
-    const status = document.getElementById('new-status').value;
-    const notes = document.getElementById('status-notes').value.trim();
-    const btn = document.getElementById('status-btn');
-    btn.disabled = true; btn.textContent = 'Updating...';
-    const res = await api.patch(`/employee/loans/${currentLoanId}/status`, { status, notes });
-    btn.disabled = false; btn.textContent = 'Update Status';
-    if (!res?.ok) return showAlert('status-modal-alert', res?.data?.message || 'Error.', 'error');
-    closeStatusModal();
-    showAlert('page-alert', `Loan status updated to ${status}.`, 'success');
+    const status = document.getElementById('drawer-new-status').value;
+    const notes = document.getElementById('drawer-notes').value.trim();
+    const login_date = document.getElementById('drawer-login-date').value || null;
+    const system_upload_date = document.getElementById('drawer-upload-date').value || null;
+    const disbursement_date = document.getElementById('drawer-disbursement-date').value || null;
+    const amountVal = document.getElementById('drawer-disbursement-amount').value;
+    const disbursement_amount = amountVal ? parseFloat(amountVal.replace(/[^0-9]/g, '')) : null;
+
+    const btn = document.getElementById('drawer-update-btn');
+    const spinner = document.getElementById('drawer-update-btn-spinner');
+    const btnText = document.getElementById('drawer-update-btn-text');
+
+    // Frontend validation for mandatory remarks
+    if (['Rejected', 'Hold', 'Cancelled'].includes(status) && !notes) {
+      showAlert('drawer-alert', 'Please enter remarks before updating this status.', 'error');
+      return;
+    }
+
+    if (status === 'Loan Disbursed') {
+      if (!disbursement_date) {
+        showAlert('drawer-alert', 'Please enter the disbursement date.', 'error');
+        return;
+      }
+      if (disbursement_amount === null || isNaN(disbursement_amount) || amountVal.trim() === '') {
+        showAlert('drawer-alert', 'Please enter the disbursement amount.', 'error');
+        return;
+      }
+    }
+
+    btn.disabled = true;
+    if (spinner) spinner.style.display = 'inline-block';
+    if (btnText) btnText.textContent = 'Updating...';
+
+    const res = await api.patch(`/employee/loans/${currentLoanId}/status`, {
+      status, notes, login_date, system_upload_date, disbursement_date, disbursement_amount
+    });
+
+    btn.disabled = false;
+    if (spinner) spinner.style.display = 'none';
+    if (btnText) btnText.textContent = 'Update Status';
+
+    if (!res?.ok) {
+      showAlert('drawer-alert', res?.data?.message || 'Failed to update status.', 'error');
+      return;
+    }
+
+    // Refresh history timeline in modal
+    const detailRes = await api.get(`/employee/loans/${currentLoanId}`);
+    if (detailRes?.ok) {
+      renderHistory(detailRes.data.data.history || []);
+    }
+
+    // Close drawer and refresh
+    document.getElementById('status-drawer-overlay').classList.remove('show');
+    document.body.style.overflow = '';
+    showAlert('page-alert', `Loan status updated to "${status}".`, 'success');
     loadLoans();
   }
 
+  // ── Delete Mode ───────────────────────────────────────────
   let deleteMode = false;
   const selectedLoans = new Set();
 
@@ -371,14 +1056,13 @@
     const deleteBtn = document.getElementById('delete-mode-btn');
     const cancelBtn = document.getElementById('cancel-delete-btn');
     const deleteBar = document.getElementById('delete-action-bar');
-    const checkboxCells = document.querySelectorAll('.checkbox-cell');
-    
+
     if (deleteMode) {
       checkboxHeader.style.display = 'table-cell';
       deleteBar.style.display = 'flex';
       deleteBtn.style.display = 'none';
       cancelBtn.style.display = 'inline-block';
-      checkboxCells.forEach(cell => cell.style.display = 'table-cell');
+      document.querySelectorAll('.checkbox-cell').forEach(c => c.style.display = 'table-cell');
       selectedLoans.clear();
       document.getElementById('select-all-checkbox').checked = false;
       document.getElementById('selected-count').textContent = '0 selected';
@@ -390,47 +1074,32 @@
   function cancelDeleteMode() {
     deleteMode = false;
     selectedLoans.clear();
-    const checkboxHeader = document.getElementById('checkbox-header');
-    const deleteBtn = document.getElementById('delete-mode-btn');
-    const cancelBtn = document.getElementById('cancel-delete-btn');
-    const deleteBar = document.getElementById('delete-action-bar');
-    const checkboxCells = document.querySelectorAll('.checkbox-cell');
-    const allCheckboxes = document.querySelectorAll('.loan-checkbox');
-    
-    checkboxHeader.style.display = 'none';
-    deleteBar.style.display = 'none';
-    deleteBtn.style.display = 'inline-block';
-    cancelBtn.style.display = 'none';
-    checkboxCells.forEach(cell => cell.style.display = 'none');
-    allCheckboxes.forEach(cb => cb.checked = false);
+    document.getElementById('checkbox-header').style.display = 'none';
+    document.getElementById('delete-action-bar').style.display = 'none';
+    document.getElementById('delete-mode-btn').style.display = 'inline-block';
+    document.getElementById('cancel-delete-btn').style.display = 'none';
+    document.querySelectorAll('.checkbox-cell').forEach(c => c.style.display = 'none');
+    document.querySelectorAll('.loan-checkbox').forEach(cb => cb.checked = false);
     document.getElementById('select-all-checkbox').checked = false;
   }
 
   function toggleSelectAll() {
     const mainCb = document.getElementById('select-all-checkbox');
-    const cbs = document.querySelectorAll('.loan-checkbox');
-    cbs.forEach(cb => {
+    document.querySelectorAll('.loan-checkbox').forEach(cb => {
       cb.checked = mainCb.checked;
-      if (mainCb.checked) {
-        selectedLoans.add(parseInt(cb.value));
-      } else {
-        selectedLoans.delete(parseInt(cb.value));
-      }
+      if (mainCb.checked) selectedLoans.add(parseInt(cb.value));
+      else selectedLoans.delete(parseInt(cb.value));
     });
     updateSelectedCountText();
   }
 
   function updateSelectedCount() {
-    const cbs = document.querySelectorAll('.loan-checkbox');
     let allChecked = true;
+    const cbs = document.querySelectorAll('.loan-checkbox');
     cbs.forEach(cb => {
       const id = parseInt(cb.value);
-      if (cb.checked) {
-        selectedLoans.add(id);
-      } else {
-        selectedLoans.delete(id);
-        allChecked = false;
-      }
+      if (cb.checked) selectedLoans.add(id);
+      else { selectedLoans.delete(id); allChecked = false; }
     });
     document.getElementById('select-all-checkbox').checked = cbs.length > 0 && allChecked;
     updateSelectedCountText();
@@ -441,20 +1110,11 @@
   }
 
   async function confirmDeleteSelected() {
-    if (selectedLoans.size === 0) {
-      alert('Please select at least one loan record to delete.');
-      return;
-    }
-    if (!confirm(`Are you sure you want to delete the ${selectedLoans.size} selected loan record(s)?`)) {
-      return;
-    }
-    
+    if (selectedLoans.size === 0) { alert('Please select at least one loan record to delete.'); return; }
+    if (!confirm(`Are you sure you want to delete the ${selectedLoans.size} selected loan record(s)?`)) return;
     const ids = Array.from(selectedLoans);
     const res = await api.post('/employee/loans/delete', { ids });
-    if (!res?.ok) {
-      return alert(res?.data?.message || 'Failed to delete selected loan records.');
-    }
-    
+    if (!res?.ok) return alert(res?.data?.message || 'Failed to delete selected loan records.');
     alert('Selected loan records deleted successfully.');
     cancelDeleteMode();
     loadLoans();

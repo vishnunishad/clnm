@@ -57,3 +57,9 @@ temp/
 # Deployment secrets and certificates
 deploy/ssl/
 Thumbs.db
+
+# WhatsApp session data
+backend/sessions/
+
+# Explicit backend env
+backend/.env

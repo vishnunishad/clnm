@@ -198,7 +198,37 @@ async function sendPasswordResetEmail({ to, name, resetUrl }) {
   }
 }
 
+async function sendSystemNotificationEmail({ to, name, subject, message }) {
+  if (!to || !message) {
+    throw new Error('System notification email requires a recipient and message.');
+  }
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f2937;">
+      <h2 style="margin-bottom: 16px;">System Notification</h2>
+      <p>Hello ${name || 'there'},</p>
+      <p>${message}</p>
+      <p style="margin-top: 24px; font-size: 12px; color: #6b7280;">This is an automated system notification from CLN.</p>
+    </div>
+  `;
+
+  const text = `Hello ${name || 'there'},\n\n${message}\n\nThis is an automated system notification from CLN.`;
+
+  try {
+    if (process.env.SMTP_HOST) {
+      await sendViaSMTP({ to, subject, html, text });
+    } else {
+      await sendViaResend({ to, subject, html, text });
+    }
+  } catch (err) {
+    console.error('[Mailer] sendSystemNotificationEmail error:', err && err.message ? err.message : err);
+    throw err;
+  }
+}
+
 module.exports = {
   sendPasswordResetEmail,
+  sendSystemNotificationEmail,
   debugResendEnvironment: debugMailerEnvironment
 };
+

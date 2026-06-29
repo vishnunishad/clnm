@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CLN Lending Suite — Admin Profile</title>
+  <meta name="description" content="Admin profile management — update personal info, security, and preferences." />
+  <link rel="stylesheet" href="/css/styles.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Profile Layout ── */
+    .profile-page { max-width: 1150px; margin: 0 auto; padding: 0 4px; }
+    .profile-grid {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+    @media (max-width: 900px) { .profile-grid { grid-template-columns: 1fr; } }
+
+    /* ── Overview Card ── */
+    .overview-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow-soft);
+      position: sticky;
+      top: 20px;
+    }
+    :root[data-theme='dark'] .overview-card {
+      background: linear-gradient(135deg, rgba(10,19,32,0.94) 0%, rgba(14,25,42,0.97) 100%);
+    }
+    .overview-banner {
+      height: 90px;
+      background: linear-gradient(135deg, var(--accent) 0%, #2f6fed 60%, #4f46e5 100%);
+      position: relative;
+    }
+    :root[data-theme='dark'] .overview-banner {
+      background: linear-gradient(135deg, #1a3560 0%, #2f6fed 60%, #312e81 100%);
+    }
+    .avatar-wrap {
+      position: absolute;
+      bottom: -40px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+    .profile-avatar-big {
+      width: 84px; height: 84px;
+      border-radius: 50%;
+      border: 4px solid var(--bg-card);
+      background: linear-gradient(135deg, var(--accent) 0%, #2f6fed 100%);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2.2rem; font-weight: 800; color: #fff;
+      overflow: hidden;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.18);
+    }
+    .profile-avatar-big img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+    .avatar-upload-btn {
+      position: absolute;
+      bottom: 2px; right: 2px;
+      width: 28px; height: 28px;
+      background: var(--accent-secondary);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; color: #fff;
+      cursor: pointer;
+      border: 2px solid var(--bg-card);
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+    .avatar-upload-btn:hover { background: #1d4ed8; transform: scale(1.08); }
+    .overview-body { padding: 54px 22px 22px; text-align: center; }
+    .overview-name { font-size: 1.2rem; font-weight: 800; color: var(--text-primary); margin-bottom: 2px; letter-spacing: -0.2px; }
+    .overview-role { font-size: 0.82rem; color: var(--accent-secondary); font-weight: 700; letter-spacing: 0.3px; margin-bottom: 14px; }
+    
+    .overview-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 16px 0; }
+    .stat-mini { background: var(--bg-secondary); border-radius: 10px; padding: 10px; text-align: center; border: 1px solid var(--border); }
+    .stat-mini .val { font-size: 1.1rem; font-weight: 800; color: var(--text-primary); display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .stat-mini .lbl { font-size: 10px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+
+    .overview-meta { border-top: 1px solid var(--border); padding-top: 16px; display: flex; flex-direction: column; gap: 10px; text-align: left; }
+    .meta-row { display: flex; align-items: center; gap: 10px; font-size: 12.5px; color: var(--text-secondary); }
+    .meta-row i { width: 18px; text-align: center; font-size: 13px; color: var(--accent-secondary); flex-shrink: 0; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #10b981; display: inline-block; box-shadow: 0 0 0 3px rgba(16,185,129,0.2); }
+
+    /* ── Tab Navigation ── */
+    .profile-tabs { display: flex; gap: 6px; margin-bottom: 20px; flex-wrap: wrap; background: var(--bg-secondary); padding: 6px; border-radius: 12px; border: 1px solid var(--border); }
+    .ptab {
+      padding: 9px 18px; border: none; border-radius: 8px;
+      font-size: 12.5px; font-weight: 600; cursor: pointer; color: var(--text-secondary);
+      background: transparent; transition: all 0.2s ease; white-space: nowrap;
+      display: inline-flex; align-items: center; gap: 8px;
+    }
+    .ptab i { font-size: 13px; }
+    .ptab:hover { color: var(--accent-secondary); background: var(--bg-card); }
+    .ptab.active { background: var(--accent-secondary); color: #fff; box-shadow: 0 2px 8px rgba(47,111,237,0.3); }
+    
+    .ptab-panel { display: none; }
+    .ptab-panel.active { display: block; animation: fadeUp 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
+    @keyframes fadeUp { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform: none; } }
+
+    /* ── Section Card ── */
+    .sec-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow-soft);
+      margin-bottom: 20px;
+    }
+    .sec-head {
+      display: flex; align-items: center; gap: 12px;
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(90deg, var(--bg-card) 0%, var(--bg-secondary) 100%);
+    }
+    .sec-head-icon { font-size: 1.2rem; color: var(--accent-secondary); width: 36px; height: 36px; border-radius: 8px; background: rgba(47,111,237,0.1); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .sec-head h3 { font-size: 15px; font-weight: 700; color: var(--text-primary); margin: 0; }
+    .sec-head p  { font-size: 12px; color: var(--text-muted); margin: 2px 0 0; }
+    .sec-body { padding: 24px; }
+
+    /* ── Form Grid ── */
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group.full { grid-column: 1 / -1; }
+    .form-group label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
+    .form-group input, .form-group select, .form-group textarea {
+      padding: 10px 14px; border: 1px solid var(--border);
+      border-radius: var(--radius-sm); font-size: 13.5px;
+      color: var(--text-primary); background: var(--bg-secondary);
+      font-family: inherit; outline: none; transition: all 0.2s;
+    }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+      border-color: var(--accent-secondary); background: var(--bg-card);
+      box-shadow: 0 0 0 3px rgba(47,111,237,0.15);
+    }
+    .form-group input[readonly] { opacity: 0.7; cursor: not-allowed; }
+    .form-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px; }
+
+    /* ── Password Strength ── */
+    .pw-strength { margin-top: 6px; }
+    .pw-strength-bar { height: 4px; border-radius: 4px; background: var(--border); overflow: hidden; }
+    .pw-strength-fill { height: 100%; border-radius: 4px; transition: width 0.3s, background 0.3s; width: 0%; }
+    .pw-strength-label { font-size: 10px; font-weight: 700; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .pw-toggle { position: relative; }
+    .pw-eye { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 14px; color: var(--text-muted); transition: color 0.2s; }
+    .pw-eye:hover { color: var(--text-primary); }
+
+    /* ── Toggle Switch ── */
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid var(--border); }
+    .toggle-row:last-child { border-bottom: none; }
+    .toggle-info h4 { font-size: 13.5px; font-weight: 600; color: var(--text-primary); margin: 0 0 2px; }
+    .toggle-info p  { font-size: 11.5px; color: var(--text-muted); margin: 0; }
+    .toggle-switch { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .toggle-slider {
+      position: absolute; inset: 0; background: var(--border); border-radius: 24px;
+      cursor: pointer; transition: background 0.3s;
+    }
+    .toggle-slider::before {
+      content: ''; position: absolute;
+      width: 18px; height: 18px; border-radius: 50%; background: #fff;
+      left: 3px; top: 3px; transition: transform 0.3s;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+    }
+    input:checked + .toggle-slider { background: var(--accent-secondary); }
+    input:checked + .toggle-slider::before { transform: translateX(20px); }
+
+    /* ── Activity Logs Table ── */
+    .log-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    .log-table th { padding: 10px 14px; background: var(--bg-secondary); color: var(--text-muted); font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; text-align: left; }
+    .log-table td { padding: 12px 14px; border-bottom: 1px solid var(--table-row-border); color: var(--text-secondary); vertical-align: middle; }
+    .log-table tr:last-child td { border-bottom: none; }
+    .log-table tr:hover td { background: var(--table-row-hover); }
+
+    /* ── System Info ── */
+    .sys-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media (max-width: 480px) { .sys-grid { grid-template-columns: 1fr; } }
+    .sys-item { background: var(--bg-secondary); border-radius: 10px; padding: 14px; border: 1px solid var(--border); }
+    .sys-item label { font-size: 10.5px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 4px; }
+    .sys-item span  { font-size: 13.5px; color: var(--text-primary); font-weight: 600; }
+
+    /* ── Login history ── */
+    .login-item { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0; border-bottom: 1px solid var(--table-row-border); }
+    .login-item:last-child { border-bottom: none; }
+    .login-icon { width: 32px; height: 32px; border-radius: 8px; background: var(--bg-secondary); display: flex; align-items: center; justify-content: center; font-size: 14px; color: var(--accent-secondary); flex-shrink: 0; }
+    .login-details { flex: 1; min-width: 0; }
+    .login-device { font-size: 13px; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 6px; }
+    .login-meta { font-size: 11.5px; color: var(--text-muted); margin-top: 3px; }
+
+    #page-alert { margin-bottom: 16px; }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">
+        <div class="logo-icon">CLN</div>
+        <div><h2><i class="fas fa-chart-line" style="color:var(--accent-secondary); margin-right:6px;"></i>CLN Lending Suite</h2><span>Admin Console</span></div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">
+        <div class="nav-section-title">Main</div>
+        <a href="/admin/dashboard.html"      class="nav-item"><span class="nav-icon"><i class="fas fa-chart-pie"></i></span> Dashboard</a>
+        <a href="/admin/employees.html"      class="nav-item"><span class="nav-icon"><i class="fas fa-users"></i></span> Employees</a>
+        <a href="/admin/customers.html"      class="nav-item"><span class="nav-icon"><i class="fas fa-address-book"></i></span> Customers</a>
+        <a href="/admin/loans.html"          class="nav-item"><span class="nav-icon"><i class="fas fa-briefcase"></i></span> Loan Applications</a>
+        <a href="/admin/emi-calculator.html" class="nav-item"><span class="nav-icon"><i class="fas fa-calculator"></i></span> EMI Calculator</a>
+
+        <a href="/admin/data-excel.html" class="nav-item"><span class="nav-icon"><i class="fas fa-file-excel"></i></span> Data Excel Document</a>
+        <a href="/admin/apr.html" class="nav-item"><span class="nav-icon"><i class="fas fa-chart-line"></i></span> APR</a>
+
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-info">
+        <div class="user-avatar" id="sidebar-user-avatar">A</div>
+        <div class="user-details"><p id="sidebar-user-name">Admin</p><span id="sidebar-user-role">admin</span></div>
+      </div>
+      <button class="logout-btn" onclick="logout()"><i class="fas fa-right-from-bracket" style="margin-right:4px;"></i> Logout</button>
+    </div>
+  </aside>
+  <div class="sidebar-overlay" onclick="toggleMobileSidebar()"></div>
+
+  <main class="main-content">
+    <div class="topbar">
+      <button class="mobile-menu-btn" onclick="toggleMobileSidebar()"><i class="fas fa-bars"></i> Menu</button>
+      <div class="topbar-title">
+        <h2><i class="fas fa-user-gear" style="margin-right:8px; color:var(--accent-secondary);"></i>My Profile</h2>
+        <p>Manage your account information, security settings, and preferences.</p>
+      </div>
+      <div class="topbar-actions"></div>
+    </div>
+
+    <div class="page-content">
+      <div id="page-alert" class="alert"></div>
+
+      <div class="profile-page">
+        <div class="profile-grid">
+
+          <!-- ── Left: Overview Card ── -->
+          <div>
+            <div class="overview-card">
+              <div class="overview-banner">
+                <div class="avatar-wrap">
+                  <div class="profile-avatar-big" id="big-avatar">A</div>
+                  <input type="file" id="avatar-file-input" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="handleAvatarUpload(event)" />
+                  <div class="avatar-upload-btn" onclick="document.getElementById('avatar-file-input').click()" title="Change photo"><i class="fas fa-camera"></i></div>
+                </div>
+              </div>
+              <div class="overview-body">
+                <div class="overview-name" id="ov-name">—</div>
+                <div class="overview-role" id="ov-role">—</div>
+                <div class="overview-stats">
+                  <div class="stat-mini">
+                    <div class="val" id="ov-uid">—</div>
+                    <div class="lbl">User ID</div>
+                  </div>
+                  <div class="stat-mini">
+                    <div class="val"><span class="status-dot"></span> Active</div>
+                    <div class="lbl">Status</div>
+                  </div>
+                </div>
+                <div class="overview-meta">
+                  <div class="meta-row"><i class="fas fa-envelope"></i><span id="ov-email">—</span></div>
+                  <div class="meta-row"><i class="fas fa-phone"></i><span id="ov-phone">—</span></div>
+                  <div class="meta-row"><i class="fas fa-at"></i><span id="ov-username">—</span></div>
+                  <div class="meta-row"><i class="fas fa-calendar-days"></i><span id="ov-since">—</span></div>
+                  <div class="meta-row"><i class="fas fa-clock"></i><span id="ov-last-login">—</span></div>
+                </div>
+                <div style="margin-top:16px; display:flex; gap:8px;">
+                  <button class="btn btn-danger btn-sm" onclick="removeAvatar()" style="flex:1;font-size:11.5px; display:flex; align-items:center; justify-content:center; gap:6px;"><i class="fas fa-trash-can"></i> Remove Photo</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Right: Tabbed Sections ── -->
+          <div>
+            <div class="profile-tabs">
+              <button class="ptab active" onclick="switchTab('personal')"><i class="fas fa-user"></i> Personal Info</button>
+              <button class="ptab" onclick="switchTab('account')"><i class="fas fa-sliders"></i> Account</button>
+              <button class="ptab" onclick="switchTab('security')"><i class="fas fa-shield-halved"></i> Security</button>
+              <button class="ptab" onclick="switchTab('notifications')"><i class="fas fa-bell"></i> Notifications</button>
+              <button class="ptab" onclick="switchTab('logs')"><i class="fas fa-list-check"></i> Activity</button>
+              <button class="ptab" onclick="switchTab('sysinfo')"><i class="fas fa-circle-info"></i> System Info</button>
+            </div>
+
+            <!-- Personal Info -->
+            <div class="ptab-panel active" id="panel-personal">
+              <div class="sec-card">
+                <div class="sec-head">
+                  <div class="sec-head-icon"><i class="fas fa-user"></i></div>
+                  <div><h3>Personal Information</h3><p>Update your personal details and contact address</p></div>
+                </div>
+                <div class="sec-body">
+                  <div class="form-grid">
+                    <div class="form-group"><label>Date of Birth</label><input type="date" id="pi-dob" /></div>
+                    <div class="form-group"><label>Gender</label>
+                      <select id="pi-gender">
+                        <option value="">Select Gender</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                        <option value="Prefer not to say">Prefer not to say</option>
+                      </select>
+                    </div>
+                    <div class="form-group full"><label>Current Address</label><input type="text" id="pi-address" placeholder="Street address, apartment, locality…" /></div>
+                    <div class="form-group full"><label>Permanent Address</label><input type="text" id="pi-perm-address" placeholder="Same as above or permanent residential address" /></div>
+                    <div class="form-group"><label>City</label><input type="text" id="pi-city" placeholder="City" /></div>
+                    <div class="form-group"><label>State</label><input type="text" id="pi-state" placeholder="State" /></div>
+                    <div class="form-group"><label>Country</label><input type="text" id="pi-country" placeholder="Country" /></div>
+                    <div class="form-group"><label>Postal Code</label><input type="text" id="pi-postal" placeholder="Pin/Postal Code" /></div>
+                  </div>
+                  <div class="form-actions">
+                    <button class="btn btn-secondary" onclick="loadProfile()"><i class="fas fa-xmark" style="margin-right:4px;"></i> Cancel</button>
+                    <button class="btn btn-primary" onclick="savePersonalInfo()"><i class="fas fa-check" style="margin-right:4px;"></i> Save Changes</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Account Settings -->
+            <div class="ptab-panel" id="panel-account">
+              <div class="sec-card">
+                <div class="sec-head">
+                  <div class="sec-head-icon"><i class="fas fa-sliders"></i></div>
+                  <div><h3>Account Settings</h3><p>Update your name, username, email and phone number</p></div>
+                </div>
+                <div class="sec-body">
+                  <div class="form-grid">
+                    <div class="form-group"><label>Full Name</label><input type="text" id="acc-name" /></div>
+                    <div class="form-group"><label>Username</label><input type="text" id="acc-username" placeholder="@username" /></div>
+                    <div class="form-group"><label>Email Address</label><input type="email" id="acc-email" /></div>
+                    <div class="form-group"><label>Phone Number</label><input type="tel" id="acc-phone" placeholder="+91 XXXXX XXXXX" /></div>
+                    <div class="form-group"><label>Designation</label><input type="text" id="acc-designation" readonly /></div>
+                    <div class="form-group"><label>Role</label><input type="text" id="acc-role" readonly /></div>
+                  </div>
+                  <div class="form-actions">
+                    <button class="btn btn-secondary" onclick="loadProfile()"><i class="fas fa-xmark" style="margin-right:4px;"></i> Cancel</button>
+                    <button class="btn btn-primary" onclick="saveAccountSettings()"><i class="fas fa-check" style="margin-right:4px;"></i> Save Changes</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Security (Change Password) -->
+            <div class="ptab-panel" id="panel-security">
+              <div class="sec-card">
+                <div class="sec-head">
+                  <div class="sec-head-icon"><i class="fas fa-key"></i></div>
+                  <div><h3>Change Password</h3><p>Ensure your account remains secure with a strong password</p></div>
+                </div>
+                <div class="sec-body">
+                  <div class="form-grid">
+                    <div class="form-group full">
+                      <label>Current Password</label>
+                      <div class="pw-toggle">
+                        <input type="password" id="pw-current" placeholder="Enter current password" />
+                        <i class="fas fa-eye pw-eye" onclick="togglePw('pw-current', this)"></i>
+                      </div>
+                    </div>
+                    <div class="form-group">
+                      <label>New Password</label>
+                      <div class="pw-toggle">
+                        <input type="password" id="pw-new" placeholder="Min 8 characters" oninput="checkPwStrength()" />
+                        <i class="fas fa-eye pw-eye" onclick="togglePw('pw-new', this)"></i>
+                      </div>
+                      <div class="pw-strength">
+                        <div class="pw-strength-bar"><div class="pw-strength-fill" id="pw-fill"></div></div>
+                        <div class="pw-strength-label" id="pw-label"></div>
+                      </div>
+                    </div>
+                    <div class="form-group">
+                      <label>Confirm New Password</label>
+                      <div class="pw-toggle">
+                        <input type="password" id="pw-confirm" placeholder="Re-enter new password" />
+                        <i class="fas fa-eye pw-eye" onclick="togglePw('pw-confirm', this)"></i>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="form-actions">
+                    <button class="btn btn-primary" onclick="changePassword()"><i class="fas fa-lock" style="margin-right:4px;"></i> Update Password</button>
+                  </div>
+                </div>
+              </div>
+              <div class="sec-card">
+                <div class="sec-head">
+                  <div class="sec-head-icon"><i class="fas fa-user-shield"></i></div>
+                  <div><h3>Login History</h3><p>Recent signed-in sessions and device security logs</p></div>
+                </div>
+                <div class="sec-body" id="login-history-list">
+                  <p style="font-size:12px; color:var(--text-muted); font-style:italic;">Loading history…</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Notifications -->
+            <div class="ptab-panel" id="panel-notifications">
+              <div class="sec-card">
+                <div class="sec-head">
+                  <div class="sec-head-icon"><i class="fas fa-bell"></i></div>
+                  <div><h3>Notification Preferences</h3><p>Choose which system and communication alerts you receive</p></div>
+                </div>
+                <div class="sec-body">
+                  <div class="toggle-row">
+                    <div class="toggle-info"><h4>Email Notifications</h4><p>Get daily summaries and critical updates via email</p></div>
+                    <label class="toggle-switch"><input type="checkbox" id="n-email" /><span class="toggle-slider"></span></label>
+                  </div>
+                  <div class="toggle-row">
+                    <div class="toggle-info"><h4>WhatsApp Notifications</h4><p>Receive immediate real-time WhatsApp alert messages</p></div>
+                    <label class="toggle-switch"><input type="checkbox" id="n-whatsapp" /><span class="toggle-slider"></span></label>
+                  </div>
+                  <div class="toggle-row">
+                    <div class="toggle-info"><h4>Loan Application Alerts</h4><p>Notifications on new loan applications submitted</p></div>
+                    <label class="toggle-switch"><input type="checkbox" id="n-loans" /><span class="toggle-slider"></span></label>
+                  </div>
+                  <div class="toggle-row">
+                    <div class="toggle-info"><h4>Employee Activity Alerts</h4><p>Alerts when staff members perform key administrative actions</p></div>
+                    <label class="toggle-switch"><input type="checkbox" id="n-emp" /><span class="toggle-slider"></span></label>
+                  </div>
+                  <div class="toggle-row">
+                    <div class="toggle-info"><h4>System Alerts</h4><p>Critical system and security alerts</p></div>
+                    <label class="toggle-switch"><input type="checkbox" id="n-sys" /><span class="toggle-slider"></span></label>
+                  </div>
+                  <div class="form-actions" style="margin-top:20px;">
+                    <button class="btn btn-primary" onclick="saveNotifications()"><i class="fas fa-check" style="margin-right:4px;"></i> Save Preferences</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Activity Logs -->
+            <div class="ptab-panel" id="panel-logs">
+              <div class="sec-card">
+                <div class="sec-head">
+                  <div class="sec-head-icon"><i class="fas fa-list-check"></i></div>
+                  <div><h3>Activity Log</h3><p>Audit trial of your recent administrative actions</p></div>
+                </div>
+                <div class="sec-body" style="padding:0;">
+                  <table class="log-table">
+                    <thead><tr><th>Activity</th><th>Date &amp; Time</th><th>Status</th></tr></thead>
+                    <tbody id="activity-tbody">
+                      <tr><td colspan="3" style="text-align:center; padding:24px; color:var(--text-muted);">Loading log data…</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- System Info -->
+            <div class="ptab-panel" id="panel-sysinfo">
+              <div class="sec-card">
+                <div class="sec-head">
+                  <div class="sec-head-icon"><i class="fas fa-circle-info"></i></div>
+                  <div><h3>System Information</h3><p>Read-only administrator account and platform metadata</p></div>
+                </div>
+                <div class="sec-body">
+                  <div class="sys-grid">
+                    <div class="sys-item"><label>User ID</label><span id="si-uid">—</span></div>
+                    <div class="sys-item"><label>Role</label><span id="si-role">—</span></div>
+                    <div class="sys-item"><label>Account Created</label><span id="si-created">—</span></div>
+                    <div class="sys-item"><label>Designation</label><span id="si-designation">—</span></div>
+                    <div class="sys-item"><label>Account Status</label><span style="color:#10b981; font-weight:700; display:inline-flex; align-items:center; gap:6px;"><i class="fas fa-circle-check"></i> Active</span></div>
+                    <div class="sys-item"><label>Application Version</label><span>CLN Lending Suite v1.0</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div><!-- /right -->
+        </div><!-- /profile-grid -->
+      </div><!-- /profile-page -->
+    </div><!-- /page-content -->
+  </main>
+</div>
+
+<script src="/js/runtime-config.js?v=20260523a"></script>
+<script src="/js/api.js?v=20260622a"></script>
+<script>
+  const user = requireRole('admin');
+  if (user) { renderSidebarUser(); loadProfile(); }
+
+  let profileData = null;
+
+  // ── Tab switching ──────────────────────────────────────────────
+  function switchTab(name) {
+    document.querySelectorAll('.ptab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.ptab-panel').forEach(p => p.classList.remove('active'));
+    const btn = document.querySelector(`.ptab[onclick="switchTab('${name}')"]`);
+    if (btn) btn.classList.add('active');
+    const panel = document.getElementById(`panel-${name}`);
+    if (panel) panel.classList.add('active');
+  }
+
+  // ── Load profile ───────────────────────────────────────────────
+  async function loadProfile() {
+    const res = await api.get('/profile');
+    if (!res?.ok) return showAlert('page-alert', 'Failed to load profile.', 'error');
+    profileData = res.data.data;
+    const u = profileData.user;
+    const n = profileData.notifications || {};
+
+    // Overview
+    document.getElementById('ov-name').textContent  = u.name;
+    document.getElementById('ov-role').textContent  = u.designation || 'Super Administrator';
+    document.getElementById('ov-uid').textContent   = `#${u.id}`;
+    document.getElementById('ov-email').textContent = u.email;
+    document.getElementById('ov-phone').textContent = u.phone || '—';
+    document.getElementById('ov-username').textContent = u.username ? `@${u.username}` : '—';
+    document.getElementById('ov-since').textContent = `Joined: ${formatDate(u.created_at)}`;
+
+    // Avatar
+    const bigAvatar = document.getElementById('big-avatar');
+    if (u.profile_picture) {
+      bigAvatar.innerHTML = `<img src="${u.profile_picture}" alt="avatar" />`;
+    } else {
+      bigAvatar.textContent = (u.name||'A').charAt(0).toUpperCase();
+    }
+
+    // Last login
+    const lastLogin = profileData.loginHistory?.[0];
+    document.getElementById('ov-last-login').textContent = lastLogin
+      ? `Last login: ${new Date(lastLogin.login_time).toLocaleString('en-IN', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',hour12:true,timeZone:'Asia/Kolkata'})}`
+      : 'No login history';
+
+    // Personal Info
+    document.getElementById('pi-dob').value         = u.date_of_birth ? u.date_of_birth.slice(0,10) : '';
+    document.getElementById('pi-gender').value       = u.gender || '';
+    document.getElementById('pi-address').value      = u.address || '';
+    document.getElementById('pi-perm-address').value = u.permanent_address || '';
+    document.getElementById('pi-city').value         = u.city || '';
+    document.getElementById('pi-state').value        = u.state || '';
+    document.getElementById('pi-country').value      = u.country || '';
+    document.getElementById('pi-postal').value       = u.postal_code || '';
+
+    // Account settings
+    document.getElementById('acc-name').value        = u.name;
+    document.getElementById('acc-username').value    = u.username || '';
+    document.getElementById('acc-email').value       = u.email;
+    document.getElementById('acc-phone').value       = u.phone || '';
+    document.getElementById('acc-designation').value = u.designation || 'Super Administrator';
+    document.getElementById('acc-role').value        = 'Admin';
+
+    // System info
+    document.getElementById('si-uid').textContent   = `ADM${String(u.id).padStart(3,'0')}`;
+    document.getElementById('si-role').textContent  = 'Super Administrator';
+    document.getElementById('si-created').textContent = formatDate(u.created_at);
+    document.getElementById('si-designation').textContent = u.designation || 'Super Administrator';
+
+    // Notifications
+    document.getElementById('n-email').checked    = !!n.email_notifications;
+    document.getElementById('n-whatsapp').checked = !!n.whatsapp_notifications;
+    document.getElementById('n-loans').checked    = !!n.loan_alerts;
+    document.getElementById('n-emp').checked      = !!n.employee_activity_alerts;
+    document.getElementById('n-sys').checked      = !!n.system_alerts;
+
+    // Activity logs
+    renderActivityLogs(profileData.activityLogs || []);
+    renderLoginHistory(profileData.loginHistory || []);
+  }
+
+  function renderActivityLogs(logs) {
+    const tbody = document.getElementById('activity-tbody');
+    if (!logs.length) { tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding:24px; color:var(--text-muted);">No activity recorded yet.</td></tr>`; return; }
+    tbody.innerHTML = logs.map(l => `<tr>
+      <td style="color:var(--text-primary); font-weight:600;">${l.activity}</td>
+      <td>${new Date(l.created_at).toLocaleString('en-IN', {day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:true,timeZone:'Asia/Kolkata'})}</td>
+      <td><span class="badge ${l.status==='Success'?'badge-approved':'badge-rejected'}">${l.status}</span></td>
+    </tr>`).join('');
+  }
+
+  function renderLoginHistory(history) {
+    const container = document.getElementById('login-history-list');
+    if (!history.length) { container.innerHTML = `<p style="font-size:12px; color:var(--text-muted); font-style:italic;">No login records found.</p>`; return; }
+    container.innerHTML = history.map(h => {
+      const ua = h.device || '';
+      let iconClass = 'fas fa-desktop';
+      let deviceName = 'Browser Session';
+      if (ua.includes('Chrome')) { iconClass = 'fab fa-chrome'; deviceName = 'Chrome Browser'; }
+      else if (ua.includes('Firefox')) { iconClass = 'fab fa-firefox-browser'; deviceName = 'Firefox Browser'; }
+      else if (ua.includes('Safari')) { iconClass = 'fab fa-safari'; deviceName = 'Safari Browser'; }
+      else if (ua.includes('Edge')) { iconClass = 'fab fa-edge'; deviceName = 'Edge Browser'; }
+      
+      return `<div class="login-item">
+        <div class="login-icon"><i class="${iconClass}"></i></div>
+        <div class="login-details">
+          <div class="login-device">${deviceName}</div>
+          <div class="login-meta">${h.ip_address || 'Unknown IP'} &bull; ${new Date(h.login_time).toLocaleString('en-IN', {day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:true,timeZone:'Asia/Kolkata'})}</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // ── Avatar upload ──────────────────────────────────────────────
+  async function handleAvatarUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) return showAlert('page-alert', 'File too large. Max 5MB.', 'error');
+    const formData = new FormData();
+    formData.append('avatar', file);
+    const res = await apiPostForm('/profile/upload-avatar', formData);
+    if (res?.ok) {
+      showAlert('page-alert', 'Profile picture updated!', 'success');
+      refreshSidebarAvatar(res.data.profile_picture || null);
+      loadProfile();
+    } else {
+      showAlert('page-alert', res?.data?.message || 'Upload failed.', 'error');
+    }
+  }
+
+  async function removeAvatar() {
+    if (!confirm('Remove your profile picture?')) return;
+    const res = await api.delete('/profile/avatar');
+    if (res?.ok) { showAlert('page-alert', 'Profile picture removed.', 'success'); refreshSidebarAvatar(null); loadProfile(); }
+    else showAlert('page-alert', 'Failed to remove picture.', 'error');
+  }
+
+  // ── Personal Info ──────────────────────────────────────────────
+  async function savePersonalInfo() {
+    const payload = {
+      date_of_birth:    document.getElementById('pi-dob').value || null,
+      gender:           document.getElementById('pi-gender').value || null,
+      address:          document.getElementById('pi-address').value || null,
+      permanent_address:document.getElementById('pi-perm-address').value || null,
+      city:             document.getElementById('pi-city').value || null,
+      state:            document.getElementById('pi-state').value || null,
+      country:          document.getElementById('pi-country').value || null,
+      postal_code:      document.getElementById('pi-postal').value || null
+    };
+    const res = await api.put('/profile/personal-info', payload);
+    if (res?.ok) { showAlert('page-alert', 'Personal information saved!', 'success'); loadProfile(); }
+    else showAlert('page-alert', res?.data?.message || 'Save failed.', 'error');
+  }
+
+  // ── Account Settings ───────────────────────────────────────────
+  async function saveAccountSettings() {
+    const payload = {
+      name:     document.getElementById('acc-name').value.trim(),
+      username: document.getElementById('acc-username').value.trim(),
+      email:    document.getElementById('acc-email').value.trim(),
+      phone:    document.getElementById('acc-phone').value.trim()
+    };
+    if (!payload.name || !payload.email) return showAlert('page-alert', 'Name and email are required.', 'error');
+    const res = await api.put('/profile/account-settings', payload);
+    if (res?.ok) { showAlert('page-alert', 'Account settings updated!', 'success'); loadProfile(); }
+    else showAlert('page-alert', res?.data?.message || 'Update failed.', 'error');
+  }
+
+  // ── Password ───────────────────────────────────────────────────
+  function togglePw(id, iconElem) {
+    const inp = document.getElementById(id);
+    if (inp.type === 'password') {
+      inp.type = 'text';
+      iconElem.classList.remove('fa-eye');
+      iconElem.classList.add('fa-eye-slash');
+    } else {
+      inp.type = 'password';
+      iconElem.classList.remove('fa-eye-slash');
+      iconElem.classList.add('fa-eye');
+    }
+  }
+
+  function checkPwStrength() {
+    const pw = document.getElementById('pw-new').value;
+    const fill = document.getElementById('pw-fill');
+    const label = document.getElementById('pw-label');
+    let score = 0;
+    if (pw.length >= 8) score++;
+    if (/[A-Z]/.test(pw)) score++;
+    if (/[0-9]/.test(pw)) score++;
+    if (/[^A-Za-z0-9]/.test(pw)) score++;
+    const map = { 0: ['0%','#ef4444',''], 1: ['25%','#ef4444','Weak'], 2: ['50%','#f59e0b','Fair'], 3: ['75%','#3b82f6','Good'], 4: ['100%','#10b981','Strong'] };
+    const [w,c,t] = map[score];
+    fill.style.width = w; fill.style.background = c;
+    label.textContent = t; label.style.color = c;
+  }
+
+  async function changePassword() {
+    const current = document.getElementById('pw-current').value;
+    const newPw   = document.getElementById('pw-new').value;
+    const confirm = document.getElementById('pw-confirm').value;
+    if (!current || !newPw || !confirm) return showAlert('page-alert', 'All password fields are required.', 'error');
+    if (newPw !== confirm) return showAlert('page-alert', 'New passwords do not match.', 'error');
+    if (newPw.length < 8) return showAlert('page-alert', 'Password must be at least 8 characters.', 'error');
+    const res = await api.put('/profile/change-password', { currentPassword: current, newPassword: newPw, confirmPassword: confirm });
+    if (res?.ok) {
+      showAlert('page-alert', 'Password changed successfully!', 'success');
+      document.getElementById('pw-current').value = '';
+      document.getElementById('pw-new').value = '';
+      document.getElementById('pw-confirm').value = '';
+      document.getElementById('pw-fill').style.width = '0%';
+      document.getElementById('pw-label').textContent = '';
+    } else showAlert('page-alert', res?.data?.message || 'Password change failed.', 'error');
+  }
+
+  // ── Notifications ──────────────────────────────────────────────
+  async function saveNotifications() {
+    const payload = {
+      email_notifications:      document.getElementById('n-email').checked,
+      whatsapp_notifications:   document.getElementById('n-whatsapp').checked,
+      loan_alerts:              document.getElementById('n-loans').checked,
+      employee_activity_alerts: document.getElementById('n-emp').checked,
+      system_alerts:            document.getElementById('n-sys').checked
+    };
+    const res = await api.put('/profile/notification-preferences', payload);
+    if (res?.ok) showAlert('page-alert', 'Preferences saved!', 'success');
+    else showAlert('page-alert', 'Failed to save preferences.', 'error');
+  }
+</script>
+</body>
+</html>

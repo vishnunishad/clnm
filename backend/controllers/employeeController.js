@@ -3,6 +3,7 @@ const LoanModel = require('../models/loanModel');
 const DocumentModel = require('../models/documentModel');
 const path = require('path');
 const fs = require('fs');
+const whatsappService = require('../utils/whatsappService');
 
 const employeeController = {
   // ── Dashboard ───────────────────────────────────────────────
@@ -46,13 +47,41 @@ const employeeController = {
 
   async addCustomer(req, res) {
     try {
-      const { name, phone, address, area } = req.body;
-      if (!name || !phone || !address || !area) {
-        return res.status(400).json({ success: false, message: 'All customer fields are required.' });
+      const { name, phone, email, address, area, net_salary, total_obligation } = req.body;
+      if (!name || !phone || !email || !address || !area || net_salary === undefined) {
+        return res.status(400).json({ success: false, message: 'All customer fields except Total Obligation are required.' });
       }
 
-      const id = await CustomerModel.create({ name, phone, address, area, added_by: req.user.id });
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ success: false, message: 'Enter a valid email address.' });
+      }
+
+      const parsedNetSalary = parseFloat(net_salary);
+      const parsedTotalObligation = total_obligation !== undefined && total_obligation !== null && total_obligation !== '' ? parseFloat(total_obligation) : 0;
+
+      if (isNaN(parsedNetSalary) || parsedNetSalary < 0) {
+        return res.status(400).json({ success: false, message: 'Net Salary must be a non-negative number.' });
+      }
+      if (isNaN(parsedTotalObligation) || parsedTotalObligation < 0) {
+        return res.status(400).json({ success: false, message: 'Total Obligation must be a non-negative number.' });
+      }
+
+      const id = await CustomerModel.create({
+        name,
+        phone,
+        email,
+        address,
+        area,
+        net_salary: parsedNetSalary,
+        total_obligation: parsedTotalObligation,
+        added_by: req.user.id
+      });
       const customer = await CustomerModel.findById(id);
+      
+      // WhatsApp workflow trigger: Lead Created (Welcome Message)
+      whatsappService.sendWorkflowMessage('Welcome Message', id, { employee_id: req.user.id });
+
       return res.status(201).json({ success: true, message: 'Customer added successfully.', id, customer });
     } catch (err) {
       console.error('[Employee] Add customer error:', err);
@@ -197,11 +226,58 @@ const employeeController = {
   // ── Loans ───────────────────────────────────────────────────
   async getLoans(req, res) {
     try {
-      const { status, period } = req.query;
-      const loans = await LoanModel.getAll({ applied_by: req.user.id, status, period });
+      const { 
+        status, 
+        period, 
+        startDate, 
+        endDate,
+        loginStartDate,
+        loginEndDate,
+        uploadStartDate,
+        uploadEndDate,
+        disbursementStartDate,
+        disbursementEndDate,
+        periodDateType
+      } = req.query;
+      const loans = await LoanModel.getAll({ 
+        applied_by: req.user.id, 
+        status, 
+        period, 
+        startDate, 
+        endDate,
+        loginStartDate,
+        loginEndDate,
+        uploadStartDate,
+        uploadEndDate,
+        disbursementStartDate,
+        disbursementEndDate,
+        periodDateType
+      });
       return res.json({ success: true, data: loans });
     } catch (err) {
+      console.error('[Employee] Fetch loans error:', err);
       return res.status(500).json({ success: false, message: 'Failed to fetch loans.' });
+    }
+  },
+
+  async getLoanDetail(req, res) {
+    try {
+      const { id } = req.params;
+      const loan = await LoanModel.findById(id);
+      if (!loan) {
+        return res.status(404).json({ success: false, message: 'Loan record not found.' });
+      }
+      
+      // Check authorization (employee can only view their own loan detail)
+      if (loan.applied_by !== req.user.id) {
+        return res.status(403).json({ success: false, message: 'Access denied.' });
+      }
+
+      const history = await LoanModel.getHistory(id);
+      return res.json({ success: true, data: { loan, history } });
+    } catch (err) {
+      console.error('[Employee] Fetch loan detail error:', err);
+      return res.status(500).json({ success: false, message: 'Failed to fetch loan details.' });
     }
   },
 
@@ -218,6 +294,14 @@ const employeeController = {
       }
 
       const id = await LoanModel.create({ customer_id, amount, purpose, applied_by: req.user.id });
+      
+      // WhatsApp workflow trigger: Application Submitted (Confirmation Message)
+      whatsappService.sendWorkflowMessage('Application Submitted', customer_id, {
+        loan_number: 'LN-' + id,
+        loan_amount: amount,
+        employee_id: req.user.id
+      });
+
       return res.status(201).json({ success: true, message: 'Loan application created.', id });
     } catch (err) {
       console.error('[Employee] Create loan error:', err);
@@ -226,18 +310,90 @@ const employeeController = {
   },
 
   async updateLoanStatus(req, res) {
-    try {
-      const { id } = req.params;
-      const { status, notes } = req.body;
+    const { id } = req.params;
+    const { status, notes, login_date, system_upload_date, disbursement_date, disbursement_amount } = req.body;
+    console.log(`[Employee] Incoming status update request - Loan ID: ${id}, Employee ID: ${req?.user?.id}, Payload:`, req.body);
 
-      if (!['Pending', 'Approved', 'Rejected', 'ABND', 'Other'].includes(status)) {
-        return res.status(400).json({ success: false, message: 'Invalid status.' });
+    try {
+      const allowedStatuses = ['Pending', 'Under Review', 'Documents Pending', 'Approved', 'Rejected', 'Loan Disbursed', 'Cancelled', 'Hold', 'ABND', 'Other'];
+      if (!allowedStatuses.includes(status)) {
+        console.warn(`[Employee] Invalid status update attempt - Status: ${status}`);
+        return res.status(400).json({ success: false, message: `Invalid status: ${status}. Allowed values are: ${allowedStatuses.join(', ')}` });
       }
 
-      await LoanModel.updateStatus(id, { status, notes, approved_by: req.user.id });
+      if (['Rejected', 'Hold', 'Cancelled'].includes(status) && (!notes || !notes.trim())) {
+        console.warn(`[Employee] Missing remarks for status: ${status}`);
+        return res.status(400).json({ success: false, message: 'Please enter remarks before updating this status.' });
+      }
+
+      if (status === 'Loan Disbursed') {
+        if (!disbursement_date) {
+          return res.status(400).json({ success: false, message: 'Please enter the disbursement date.' });
+        }
+        if (disbursement_amount === undefined || disbursement_amount === null || String(disbursement_amount).trim() === '') {
+          return res.status(400).json({ success: false, message: 'Please enter the disbursement amount.' });
+        }
+        const parsedAmt = parseFloat(disbursement_amount);
+        if (isNaN(parsedAmt) || parsedAmt < 0) {
+          return res.status(400).json({ success: false, message: 'Please enter a valid disbursement amount.' });
+        }
+      }
+
+      const loan = await LoanModel.findById(id);
+      if (!loan) {
+        console.warn(`[Employee] Loan record not found - Loan ID: ${id}`);
+        return res.status(404).json({ success: false, message: 'Loan record not found.' });
+      }
+
+      // Check authorization
+      if (loan.applied_by !== req.user.id) {
+        console.warn(`[Employee] Access denied for user ${req.user.id} trying to update loan ${id} owned by ${loan.applied_by}`);
+        return res.status(403).json({ success: false, message: 'Access denied.' });
+      }
+
+      const affectedRows = await LoanModel.updateStatus(id, { 
+        status, 
+        notes, 
+        approved_by: req.user.id,
+        login_date,
+        system_upload_date,
+        disbursement_date,
+        disbursement_amount: status === 'Loan Disbursed' ? parseFloat(disbursement_amount) : null
+      });
+
+      console.log(`[Employee] Loan status updated successfully in DB - Loan ID: ${id}, Affected Rows: ${affectedRows}`);
+
+      // WhatsApp workflow trigger: Loan Lifecycle updates
+      let triggerCategory = null;
+      if (status === 'Approved') triggerCategory = 'Loan Approval';
+      else if (status === 'Rejected') triggerCategory = 'Loan Rejection';
+      else if (status === 'Loan Disbursed') triggerCategory = 'Loan Disbursement';
+
+      if (triggerCategory) {
+        try {
+          whatsappService.sendWorkflowMessage(triggerCategory, loan.customer_id, {
+            loan_number: 'LN-' + id,
+            loan_amount: loan.amount,
+            employee_id: req.user.id
+          });
+          console.log(`[Employee] WhatsApp workflow message sent for Category: ${triggerCategory}, Customer ID: ${loan.customer_id}`);
+        } catch (wsErr) {
+          console.error('[Employee] WhatsApp notification trigger error:', wsErr);
+        }
+      }
+
       return res.json({ success: true, message: `Loan status updated to ${status}.` });
     } catch (err) {
-      return res.status(500).json({ success: false, message: 'Failed to update loan status.' });
+      console.error(`[Employee] Error updating status for Loan ID ${id}:`, err.stack || err);
+      let errMsg = 'Failed to update loan status.';
+      if (err.code === 'ER_TRUNCATED_WRONG_VALUE' || err.sqlState === '22007') {
+        errMsg = `Validation failed: ${err.sqlMessage || 'Incorrect format or value'}`;
+      } else if (err.code === 'PROTOCOL_CONNECTION_LOST' || err.code === 'ECONNREFUSED') {
+        errMsg = 'Database connection failed.';
+      } else if (err.message) {
+        errMsg = err.message;
+      }
+      return res.status(500).json({ success: false, message: errMsg });
     }
   },
 

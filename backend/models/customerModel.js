@@ -1,10 +1,10 @@
 const db = require('../config/db');
 
 const CustomerModel = {
-  async create({ name, phone, address, area, added_by }) {
+  async create({ name, phone, email, address, area, net_salary, total_obligation, added_by }) {
     const [result] = await db.query(
-      'INSERT INTO customers (name, phone, address, area, added_by) VALUES (?, ?, ?, ?, ?)',
-      [name, phone, address, area, added_by]
+      'INSERT INTO customers (name, phone, email, address, area, net_salary, total_obligation, added_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [name, phone, email || null, address, area, net_salary || 0, total_obligation || 0, added_by]
     );
     return result.insertId;
   },
@@ -20,7 +20,7 @@ const CustomerModel = {
     return rows[0] || null;
   },
 
-  async getAll({ area, search, added_by, period } = {}) {
+  async getAll({ area, search, added_by, period, startDate, endDate } = {}) {
     let sql = `
       SELECT c.*, u.name AS added_by_name
       FROM customers c
@@ -39,6 +39,15 @@ const CustomerModel = {
       sql += ' AND c.created_at >= DATE_SUB(NOW(), INTERVAL 1 MONTH)';
     } else if (period === 'year') {
       sql += ' AND c.created_at >= DATE_SUB(NOW(), INTERVAL 1 YEAR)';
+    }
+
+    if (startDate) {
+      sql += ' AND c.created_at >= ?';
+      params.push(startDate.includes(' ') ? startDate : `${startDate} 00:00:00`);
+    }
+    if (endDate) {
+      sql += ' AND c.created_at <= ?';
+      params.push(endDate.includes(' ') ? endDate : `${endDate} 23:59:59`);
     }
 
     sql += ' ORDER BY c.created_at DESC';

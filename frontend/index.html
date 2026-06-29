@@ -19,15 +19,9 @@
       <div class="login-card">
         <div class="login-brand">
           <div class="brand-logo-container">
-            <svg class="brand-logo" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="var(--accent-secondary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M2 17L12 22L22 17" stroke="var(--accent-secondary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M2 12L12 17L22 12" stroke="var(--accent-secondary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M12 22V12" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/>
-            </svg>
+            <img class="brand-logo" src="/icons/logo.png" alt="DIXIT Lending Solution Logo" />
           </div>
           <h2 class="brand-title">Dixit Lending Solution</h2>
-          <p class="brand-subtitle">CLN Lending Suite</p>
         </div>
 
         <div class="login-role-toggle" role="group" aria-label="Select login role">
@@ -69,8 +63,8 @@
     </div>
 
     <footer class="login-page-footer">
-      <p>dixitlendingsolution © 2026</p>
-      <span class="footer-link"><a href="#">avitecin</a></span>
+      <p>© 2026 Dixit Lending Solution. All Rights Reserved.</p>
+      <span class="footer-link"><a href="#">~Support & Assistance: avitecin@gmail.com</a></span>
     </footer>
   </div>
 
@@ -78,6 +72,17 @@
   <script src="/js/api.js?v=20260615b"></script>
   <script>
     let selectedRole = 'admin';
+
+    // Show cached login error if any (like auto-deactivation)
+    const cachedError = localStorage.getItem('login_error');
+    if (cachedError) {
+      const alertEl = document.getElementById('login-alert');
+      if (alertEl) {
+        alertEl.className = 'alert alert-error show';
+        alertEl.textContent = cachedError;
+      }
+      localStorage.removeItem('login_error');
+    }
 
     // Redirect if already logged in
     const existingUser = getUser();
@@ -91,23 +96,45 @@
       document.getElementById('btn-employee').classList.toggle('active', role === 'employee');
     }
 
+    // SVG path data for the two eye states
+    const EYE_PATHS = {
+      eye: '<path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/>',
+      eyeOff: '<path d="M3 3l18 18"/><path d="M10.5 10.5a2.5 2.5 0 1 0 3 3"/><path d="M6.2 6.2C3.9 7.9 2 12 2 12s3.5 6 10 6c1.3 0 2.5-.2 3.6-.6"/><path d="M14.6 4.6C13.8 4.2 12.9 4 12 4c-6.5 0-10 8-10 8a20.1 20.1 0 0 0 4.8 5.7"/>'
+    };
+
+    function getOrCreateEyeSvg(btn) {
+      let svg = btn.querySelector('svg');
+      if (!svg) {
+        // First call — build the SVG once and append it; never replace it again
+        svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('viewBox', '0 0 24 24');
+        svg.setAttribute('width', '18');
+        svg.setAttribute('height', '18');
+        svg.setAttribute('fill', 'none');
+        svg.setAttribute('stroke', 'currentColor');
+        svg.setAttribute('stroke-width', '1.8');
+        svg.setAttribute('stroke-linecap', 'round');
+        svg.setAttribute('stroke-linejoin', 'round');
+        svg.setAttribute('aria-hidden', 'true');
+        // Remove any existing child span so the SVG is the only child
+        btn.innerHTML = '';
+        btn.appendChild(svg);
+      }
+      return svg;
+    }
+
     function togglePasswordVisibility() {
       const passwordInput = document.getElementById('password');
       const toggleBtn = document.querySelector('.toggle-password');
-      
-      if (passwordInput.type === 'password') {
-        passwordInput.type = 'text';
-        toggleBtn.classList.add('visible');
-      } else {
-        passwordInput.type = 'password';
-        toggleBtn.classList.remove('visible');
-      }
+      const isVisible = passwordInput.type === 'password';
 
-      if (typeof window.clnIcon === 'function') {
-        const visible = toggleBtn.classList.contains('visible');
-        toggleBtn.setAttribute('aria-label', visible ? 'Hide password' : 'Show password');
-        toggleBtn.innerHTML = window.clnIcon(visible ? 'eyeOff' : 'eye');
-      }
+      passwordInput.type = isVisible ? 'text' : 'password';
+      toggleBtn.classList.toggle('visible', isVisible);
+      toggleBtn.setAttribute('aria-label', isVisible ? 'Hide password' : 'Show password');
+
+      // Mutate the SVG paths in-place — no innerHTML replacement, no MutationObserver trigger
+      const svg = getOrCreateEyeSvg(toggleBtn);
+      svg.innerHTML = isVisible ? EYE_PATHS.eyeOff : EYE_PATHS.eye;
     }
 
     async function handleLogin(e) {

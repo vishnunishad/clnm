@@ -25,7 +25,12 @@
         <div class="nav-section-title">Main</div>
         <a href="/employee/dashboard.html" class="nav-item"><span class="nav-icon emoji-sm">📊</span> Dashboard</a>
         <a href="/employee/add-customer.html" class="nav-item active"><span class="nav-icon emoji-sm">➕</span> Add Customer</a>
+        <a href="/employee/my-customers.html" class="nav-item"><span class="nav-icon emoji-sm">👥</span> My Customers</a>
         <a href="/employee/loans.html" class="nav-item"><span class="nav-icon emoji-sm">💼</span> My Loans</a>
+        <a href="/employee/emi-calculator.html" class="nav-item"><span class="nav-icon emoji-sm">🧮</span> EMI Calculator</a>
+        <a href="/employee/data-excel.html" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/></svg></span> My Assigned Data</a>
+        <a href="/employee/apr.html" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span> APR</a>
+
       </div>
     </nav>
     <div class="sidebar-footer">
@@ -55,7 +60,7 @@
           <div class="card-body">
             <div class="form-group">
               <label>Quick Paste Details (Optional)</label>
-              <textarea id="cust-quick-paste" class="form-control" rows="10" placeholder="Paste the full customer block here. Example:&#10;Name - Rahul Sharma&#10;Loan Amount - 200000&#10;Mob no - 9876543210&#10;Marital Status - Married&#10;Current address - 10, MG Road, Bengaluru"></textarea>
+              <textarea id="cust-quick-paste" class="form-control" rows="10"></textarea>
               <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
                 <button type="button" class="btn btn-secondary btn-sm" onclick="fillFromQuickPaste()">Fill Fields from Paste</button>
                 <button type="button" class="btn btn-secondary btn-sm" onclick="insertPasteSample()">Insert Sample Template</button>
@@ -64,7 +69,22 @@
             </div>
             <div class="form-group"><label>Full Name *</label><input type="text" id="cust-name" class="form-control" placeholder="e.g. Rahul Sharma" /></div>
             <div class="form-group"><label>Phone Number *</label><input type="tel" id="cust-phone" class="form-control" placeholder="10-digit mobile" maxlength="10" /></div>
+            <div class="form-group"><label>Email *</label><input type="email" id="cust-email" class="form-control" placeholder="e.g. rahul.sharma@example.com" /></div>
             <div class="form-group"><label>Area *</label><input type="text" id="cust-area" class="form-control" placeholder="e.g. Koramangala" list="area-list" /><datalist id="area-list"></datalist></div>
+            <div class="form-group">
+              <label>Net Salary *</label>
+              <div style="position:relative;">
+                <span style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--text-muted); font-weight:600;">₹</span>
+                <input type="text" id="cust-net-salary" class="form-control" placeholder="Enter customer's monthly net salary" style="padding-left:28px;" inputmode="numeric" required />
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Total Obligation</label>
+              <div style="position:relative;">
+                <span style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--text-muted); font-weight:600;">₹</span>
+                <input type="text" id="cust-total-obligation" class="form-control" placeholder="Enter customer's total monthly obligations" style="padding-left:28px;" inputmode="numeric" />
+              </div>
+            </div>
             <div class="form-group"><label>Full Address *</label><textarea id="cust-address" class="form-control" rows="3" placeholder="Door no., Street, City, PIN"></textarea></div>
             <button class="btn btn-primary" onclick="addCustomer()" id="add-cust-btn"><span class="emoji-sm">➕</span>Add Customer</button>
           </div>
@@ -84,7 +104,7 @@
             <div class="card-body">
               <div class="form-group">
                 <label>Document Type</label>
-                <select id="doc-type" class="form-control">
+                <select id="doc-type" class="form-control" onchange="handleDocTypeChange()">
                   <option value="Aadhar">Aadhar Card</option>
                   <option value="PAN">PAN Card</option>
                   <option value="3M Bank Statement">3M Bank Statement</option>
@@ -92,13 +112,22 @@
                   <option value="Other">Other</option>
                 </select>
               </div>
+              <div class="form-group" id="other-doc-type-group" style="display:none;">
+                <label>Specify Document Type *</label>
+                <input type="text" id="other-doc-type" class="form-control" placeholder="e.g. Driving License" />
+              </div>
               <div class="form-group">
                 <label>Select File(s) (PDF, JPG, PNG — max 5MB each)</label>
                 <input type="file" id="doc-file" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.webp" multiple />
               </div>
               <div class="form-group">
                 <label>Document Password</label>
-                <input type="password" id="doc-password" class="form-control" placeholder="Enter document password" autocomplete="off" />
+                <div class="password-input-wrapper">
+                  <input type="password" id="doc-password" class="form-control" placeholder="Enter document password" autocomplete="off" />
+                  <button type="button" class="toggle-password" onclick="togglePasswordVisibility()" aria-label="Show Password" title="Show Password">
+                    <span class="eye-icon" aria-hidden="true"></span>
+                  </button>
+                </div>
               </div>
               <button class="btn btn-secondary" onclick="uploadDocument()" id="upload-btn"><span class="emoji-sm">📤</span>Upload Document</button>
               <div id="uploaded-docs" style="margin-top:16px;"></div>
@@ -113,51 +142,35 @@
         </div>
       </div>
 
-      <div class="card full-table" style="margin-top:28px;">
-        <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
-          <h3>My Customers</h3>
-          <button class="btn btn-danger btn-sm" id="delete-mode-btn" onclick="toggleDeleteMode()" style="display:none;">Delete</button>
-          <button class="btn btn-secondary btn-sm" id="cancel-delete-btn" onclick="cancelDeleteMode()" style="display:none;">Cancel</button>
-        </div>
-        <div class="table-wrapper">
-          <table>
-            <thead><tr><th id="checkbox-header" style="display:none;width:40px;"><input type="checkbox" id="select-all-checkbox" onchange="toggleSelectAll()" /></th><th>#</th><th>Name</th><th>Phone</th><th>Area</th><th>Date</th><th>Time</th></tr></thead>
-            <tbody id="my-customers-tbody"><tr><td colspan="7" class="text-center text-muted">Loading...</td></tr></tbody>
-          </table>
-        </div>
-        <div id="delete-action-bar" style="display:none;padding:12px 16px;background:rgba(239,68,68,0.1);border-top:1px solid var(--border);flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;">
-          <p id="selected-count" style="font-size:13px;color:var(--text-secondary);">0 selected</p>
-          <button class="btn btn-danger" onclick="confirmDeleteSelected()">Delete Selected</button>
-        </div>
-      </div>
     </div>
   </main>
 </div>
-
-    <!-- Customer Detail Modal (for My Customers page) -->
-    <div class="modal-overlay" id="customer-detail-modal" onclick="if (event.target.id==='customer-detail-modal') closeCustomerModal()">
-      <div class="modal" onclick="event.stopPropagation()">
-        <div class="modal-header">
-          <h3>Customer Details</h3>
-          <button class="modal-close" onclick="closeCustomerModal()" title="Close" style="font-size:24px;font-weight:bold;">Close</button>
-        </div>
-        <div id="customer-detail-content">
-          <div style="text-align:center;padding:20px;color:var(--text-secondary);">Loading...</div>
-        </div>
-      </div>
-    </div>
 
 <script src="/js/runtime-config.js?v=20260523a"></script>
 <script src="/js/api.js?v=20260516c"></script>
 <script>
   let newCustomerId = null;
   const user = requireRole('employee');
-  if (user) { 
-    renderSidebarUser(); 
-    loadMyCustomers(); 
-    loadAreas(); 
-    document.getElementById('delete-mode-btn').style.display = 'inline-block';
+  if (user) {
+    renderSidebarUser();
+    loadAreas();
   }
+
+  // Initialize currency input formatters
+  const netSalaryInput = document.getElementById('cust-net-salary');
+  const totalObligationInput = document.getElementById('cust-total-obligation');
+
+  function formatInputValue(input) {
+    const rawVal = input.value.replace(/[^0-9]/g, '');
+    if (!rawVal) {
+      input.value = '';
+      return;
+    }
+    input.value = Number(rawVal).toLocaleString('en-IN');
+  }
+
+  netSalaryInput.addEventListener('input', () => formatInputValue(netSalaryInput));
+  totalObligationInput.addEventListener('input', () => formatInputValue(totalObligationInput));
 
   async function loadAreas() {
     const res = await api.get('/employee/areas');
@@ -168,222 +181,7 @@
     });
   }
 
-  let deleteMode = false;
-  const selectedCustomers = new Set();
 
-  async function loadMyCustomers() {
-    const res = await api.get('/employee/customers');
-    if (!res?.ok) return;
-    const list = res.data.data;
-    const tbody = document.getElementById('my-customers-tbody');
-    tbody.innerHTML = list.length
-      ? list.map((c,i) => `
-        <tr>
-          <td class="checkbox-cell" style="display:none;width:40px;"><input type="checkbox" class="customer-checkbox" value="${c.id}" onchange="updateSelectedCount()" /></td>
-          <td>${i+1}</td>
-          <td><span style="cursor:pointer;color:var(--color-primary);text-decoration:underline;" onclick="openCustomerDetail(${c.id})">${c.name}</span></td>
-          <td>${c.phone}</td>
-          <td>${c.area}</td>
-          <td>${formatDate(c.created_at)}</td>
-          <td>${formatTime(c.created_at)}</td>
-        </tr>
-      `).join('')
-      : '<tr><td colspan="7" class="text-center text-muted">No customers yet.</td></tr>';
-  }
-
-  // Modal handling and detail fetch
-  let customerModalListenerAttached = false;
-
-  function openCustomerModal() {
-    document.getElementById('customer-detail-modal').classList.add('show');
-    attachCustomerModalListener();
-  }
-
-  function closeCustomerModal() {
-    document.getElementById('customer-detail-modal').classList.remove('show');
-    attachCustomerModalListener();
-  }
-
-  function attachCustomerModalListener() {
-    const open = document.getElementById('customer-detail-modal').classList.contains('show');
-    if (open && !customerModalListenerAttached) {
-      document.addEventListener('keydown', customerModalEsc);
-      customerModalListenerAttached = true;
-    } else if (!open && customerModalListenerAttached) {
-      document.removeEventListener('keydown', customerModalEsc);
-      customerModalListenerAttached = false;
-    }
-  }
-
-  function customerModalEsc(e) {
-    if (e.key === 'Escape') closeCustomerModal();
-  }
-
-  async function openCustomerDetail(customerId) {
-    openCustomerModal();
-    const res = await api.get(`/employee/customers/${customerId}`);
-    if (!res?.ok) {
-      document.getElementById('customer-detail-content').innerHTML = `<div style="color:red;padding:20px;text-align:center;">${res?.data?.message || 'Failed to load customer details'}</div>`;
-      return;
-    }
-    const c = res.data.data.customer;
-    const docs = res.data.data.documents || [];
-
-    const escapeHtml = (value) => String(value ?? '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-
-    function resolveFileUrl(path) {
-      if (!path) return '#';
-      if (path.startsWith('http://') || path.startsWith('https://')) return path;
-      const uploadsBase = (typeof api !== 'undefined' && api.uploadsBase) ? api.uploadsBase : (window.api && window.api.uploadsBase) ? window.api.uploadsBase : null;
-      return uploadsBase ? uploadsBase + path : path;
-    }
-
-    const content = `
-      <div style="padding:16px;">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
-          <div>
-            <label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;font-weight:600;">Name</label>
-            <p style="font-size:14px;margin-top:4px;">${c.name || '—'}</p>
-          </div>
-          <div>
-            <label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;font-weight:600;">Phone</label>
-            <p style="font-size:14px;margin-top:4px;">${c.phone || '—'}</p>
-          </div>
-          <div>
-            <label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;font-weight:600;">Email</label>
-            <p style="font-size:14px;margin-top:4px;">${c.email || '—'}</p>
-          </div>
-          <div>
-            <label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;font-weight:600;">Area</label>
-            <p style="font-size:14px;margin-top:4px;">${c.area || '—'}</p>
-          </div>
-          <div style="grid-column: span 2;">
-            <label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;font-weight:600;">Address</label>
-            <p style="font-size:14px;margin-top:4px;white-space:pre-line;">${c.address || '—'}</p>
-          </div>
-          <div>
-            <label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;font-weight:600;">Joined</label>
-            <p style="font-size:14px;margin-top:4px;">${formatDate(c.created_at) || '—'}</p>
-          </div>
-        </div>
-
-        <h4 style="margin: 16px 0 8px;font-size:12px;text-transform:uppercase;color:var(--text-secondary);font-weight:600;">Uploaded Documents (${docs.length})</h4>
-        <div style="margin-bottom:20px;max-height:180px;overflow-y:auto;border: 1px solid var(--border-color);border-radius:8px;padding:8px;">
-          ${docs.length ? docs.map(d => `
-            <div class="doc-row" style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--bg-card);border-radius:8px;margin-bottom:6px;font-size:13px;">
-              <span>${escapeHtml(d.doc_type)} — ${escapeHtml(d.file_name)}${d.document_password ? ` <span style="color:var(--text-muted);">| Password: ${escapeHtml(d.document_password)}</span>` : ''}</span>
-              <div style="display:flex;gap:6px;">
-                <a href="${resolveFileUrl(d.file_path)}" target="_blank" class="btn btn-secondary btn-sm" style="padding: 4px 8px; font-size:11px;">View</a>
-                <button class="btn btn-danger btn-sm" onclick="deleteUploadedDoc(${d.id}, this)" style="padding: 4px 8px; font-size:11px;">Delete</button>
-              </div>
-            </div>`).join('') : '<p style="color:var(--text-muted);font-size:13px;text-align:center;padding:12px 0;">No documents uploaded.</p>'}
-        </div>
-
-        <div style="border-top:1px solid var(--border-color);padding-top:16px;display:flex;gap:8px;">
-          <a href="/employee/loans.html?customer_id=${c.id}" class="btn btn-primary" style="flex:1;text-align:center;">View Loans</a>
-          <button class="btn btn-secondary" style="flex:1;" onclick="closeCustomerModal()">Close</button>
-        </div>
-      </div>
-    `;
-    document.getElementById('customer-detail-content').innerHTML = content;
-  }
-
-  function toggleDeleteMode() {
-    deleteMode = !deleteMode;
-    const checkboxHeader = document.getElementById('checkbox-header');
-    const deleteBtn = document.getElementById('delete-mode-btn');
-    const cancelBtn = document.getElementById('cancel-delete-btn');
-    const deleteBar = document.getElementById('delete-action-bar');
-    const checkboxCells = document.querySelectorAll('.checkbox-cell');
-    
-    if (deleteMode) {
-      checkboxHeader.style.display = 'table-cell';
-      deleteBar.style.display = 'flex';
-      deleteBtn.style.display = 'none';
-      cancelBtn.style.display = 'inline-block';
-      checkboxCells.forEach(cell => cell.style.display = 'table-cell');
-      selectedCustomers.clear();
-      document.getElementById('select-all-checkbox').checked = false;
-    } else {
-      cancelDeleteMode();
-    }
-  }
-
-  function cancelDeleteMode() {
-    deleteMode = false;
-    selectedCustomers.clear();
-    const checkboxHeader = document.getElementById('checkbox-header');
-    const deleteBtn = document.getElementById('delete-mode-btn');
-    const cancelBtn = document.getElementById('cancel-delete-btn');
-    const deleteBar = document.getElementById('delete-action-bar');
-    const checkboxCells = document.querySelectorAll('.checkbox-cell');
-    const allCheckboxes = document.querySelectorAll('.customer-checkbox');
-    
-    checkboxHeader.style.display = 'none';
-    deleteBar.style.display = 'none';
-    deleteBtn.style.display = 'inline-block';
-    cancelBtn.style.display = 'none';
-    checkboxCells.forEach(cell => cell.style.display = 'none');
-    allCheckboxes.forEach(cb => cb.checked = false);
-    document.getElementById('select-all-checkbox').checked = false;
-  }
-
-  function toggleSelectAll() {
-    const isChecked = document.getElementById('select-all-checkbox').checked;
-    const checkboxes = document.querySelectorAll('.customer-checkbox');
-    checkboxes.forEach(cb => {
-      cb.checked = isChecked;
-      if (isChecked) {
-        selectedCustomers.add(parseInt(cb.value));
-      } else {
-        selectedCustomers.delete(parseInt(cb.value));
-      }
-    });
-    updateSelectedCount();
-  }
-
-  function updateSelectedCount() {
-    selectedCustomers.clear();
-    const checkboxes = document.querySelectorAll('.customer-checkbox:checked');
-    checkboxes.forEach(cb => selectedCustomers.add(parseInt(cb.value)));
-    document.getElementById('selected-count').textContent = `${selectedCustomers.size} selected`;
-  }
-
-  async function confirmDeleteSelected() {
-    if (selectedCustomers.size === 0) return showAlert('page-alert', 'Select customers to delete.', 'warning');
-    if (!confirm(`Delete ${selectedCustomers.size} customer(s)? This cannot be undone.`)) return;
-
-    const ids = Array.from(selectedCustomers);
-    const res = await api.post('/employee/customers/delete', { ids });
-    if (!res?.ok) {
-      return showAlert('page-alert', res?.data?.message || 'Bulk delete failed.', 'error');
-    }
-
-    const results = res.data.results || [];
-    const failed = results.filter(r => !r.success);
-    const succeeded = results.filter(r => r.success);
-
-    if (failed.length > 0) {
-      const parts = [`Failed to delete ${failed.length} customer(s).`];
-      failed.slice(0,5).forEach(d => {
-        parts.push(`ID ${d.id}: ${d.reason}${d.loansCount ? ` (${d.loansCount} loan(s))` : ''}`);
-      });
-      if (failed.length > 5) parts.push(`and ${failed.length - 5} more...`);
-      showAlert('page-alert', parts.join(' '), 'error');
-    }
-
-    if (succeeded.length > 0) {
-      showAlert('page-alert', `${succeeded.length} customer(s) deleted.`, 'success');
-    }
-
-    cancelDeleteMode();
-    loadMyCustomers();
-  }
 
   function extractValueByLabel(text, labels) {
     const lines = text.split(/\r?\n/);
@@ -410,30 +208,30 @@
 
 👤 Personal Details
 
-• Full Name – Rahul Sharma
-• Required Loan Amount – 200000
-• Loan Tenure – 36 months
-• Mobile Number – 9876543210
-• Marital Status – Married
-• Mother’s Name – Sita Sharma
-• Spouse’s Name (if applicable) – N/A
-• Aadhaar Number – 1234 5678 9012
-• PAN Number – ABCDE1234F
-• Current Residential Address – 10, MG Road, Bengaluru
-• Years at Current Address – 5
-• Personal Gmail ID – rahul@gmail.com
-• House Type – Owned / Rented – Owned
-• Highest Education Qualification – Graduate
+Full Name – 
+Required Loan Amount – 
+Loan Tenure – 
+Mobile Number – 
+Marital Status – 
+Mother’s Name – 
+Spouse’s Name (if applicable) – 
+Aadhaar Number – 
+PAN Number – 
+Current Residential Address – 
+Years at Current Address – 
+Personal Gmail ID – 
+House Type – Owned / Rented – 
+Highest Education Qualification – 
 
 
 🏢 Employment Details
 
-• Company Name – ABC Pvt Ltd
-• Company Address – 12, Electronic City, Bengaluru
-• Official Email ID – office@abc.com
-• Current Work Experience – 4 years
-• Total Work Experience – 8 years
-• Net Monthly Income (₹) – 75000`;
+Company Name – 
+Company Address – 
+Official Email ID – 
+Current Work Experience – 
+Total Work Experience – 
+Net Monthly Income (₹) – `;
     document.getElementById('cust-quick-paste').value = sample;
   }
 
@@ -445,7 +243,12 @@
 
     if (parsed.fullName) document.getElementById('cust-name').value = parsed.fullName;
     if (parsed.mobileNumber) document.getElementById('cust-phone').value = parsed.mobileNumber;
+    if (parsed.personalGmailId) document.getElementById('cust-email').value = parsed.personalGmailId;
     if (parsed.currentResidentialAddress) document.getElementById('cust-address').value = parsed.currentResidentialAddress;
+    if (parsed.netMonthlyIncome) {
+      const sanitized = parsed.netMonthlyIncome.replace(/[^0-9]/g, '');
+      document.getElementById('cust-net-salary').value = sanitized ? Number(sanitized).toLocaleString('en-IN') : '';
+    }
 
     sessionStorage.setItem('cln_quick_paste_details', JSON.stringify(parsed));
     showAlert('page-alert', 'Fields filled from pasted details. Please verify before submitting.', 'success');
@@ -459,7 +262,12 @@
 
     if (parsed.fullName) document.getElementById('cust-name').value = parsed.fullName;
     if (parsed.mobileNumber) document.getElementById('cust-phone').value = parsed.mobileNumber;
+    if (parsed.personalGmailId) document.getElementById('cust-email').value = parsed.personalGmailId;
     if (parsed.currentResidentialAddress) document.getElementById('cust-address').value = parsed.currentResidentialAddress;
+    if (parsed.netMonthlyIncome) {
+      const sanitized = parsed.netMonthlyIncome.replace(/[^0-9]/g, '');
+      document.getElementById('cust-net-salary').value = sanitized ? Number(sanitized).toLocaleString('en-IN') : '';
+    }
 
     sessionStorage.setItem('cln_quick_paste_details', JSON.stringify(parsed));
   }
@@ -484,7 +292,7 @@
       panNumber: extractValueByLabel(raw, ['PAN Number', 'PAN card', 'Pan card']),
       currentResidentialAddress: extractValueByLabel(raw, ['Current Residential Address', 'Current address', 'Address']),
       yearsAtCurrentAddress: extractValueByLabel(raw, ['Years at Current Address', 'Address years']),
-      personalGmailId: extractValueByLabel(raw, ['Personal Gmail ID', 'Personal gmail']),
+      personalGmailId: extractValueByLabel(raw, ['Personal Gmail ID', 'Personal gmail', 'Personal Email', 'Gmail ID', 'Gmail', 'Email']),
       houseType: extractValueByLabel(raw, ['House Type', 'House - Owned/Rented', 'House']),
       highestEducationQualification: extractValueByLabel(raw, ['Highest Education Qualification', 'Education']),
       companyName: extractValueByLabel(raw, ['Company Name']),
@@ -499,11 +307,28 @@
   async function addCustomer() {
     const name = document.getElementById('cust-name').value.trim();
     const phone = document.getElementById('cust-phone').value.trim();
+    const email = document.getElementById('cust-email').value.trim();
     const area = document.getElementById('cust-area').value.trim();
     const address = document.getElementById('cust-address').value.trim();
     const quickPaste = document.getElementById('cust-quick-paste').value.trim();
-    if (!name || !phone || !area || !address) return showAlert('page-alert', 'All fields are required.', 'error');
+    const netSalaryRaw = document.getElementById('cust-net-salary').value.replace(/[^0-9]/g, '');
+    const totalObligationRaw = document.getElementById('cust-total-obligation').value.replace(/[^0-9]/g, '');
+
+    if (!name || !phone || !email || !area || !address || !netSalaryRaw) {
+      return showAlert('page-alert', 'All fields except Total Obligation are required.', 'error');
+    }
     if (!/^\d{10}$/.test(phone)) return showAlert('page-alert', 'Enter a valid 10-digit phone number.', 'error');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showAlert('page-alert', 'Enter a valid email address (e.g., rahul.sharma@example.com).', 'error');
+
+    const netSalary = parseFloat(netSalaryRaw);
+    const totalObligation = totalObligationRaw ? parseFloat(totalObligationRaw) : 0;
+
+    if (isNaN(netSalary) || netSalary < 0) {
+      return showAlert('page-alert', 'Net Salary must be a non-negative number.', 'error');
+    }
+    if (isNaN(totalObligation) || totalObligation < 0) {
+      return showAlert('page-alert', 'Total Obligation must be a non-negative number.', 'error');
+    }
 
     const finalAddress = quickPaste
       ? `${address}\n\n--- Additional Customer Details ---\n${quickPaste}`
@@ -511,7 +336,15 @@
 
     const btn = document.getElementById('add-cust-btn');
     btn.disabled = true; btn.textContent = 'Adding...';
-    const res = await api.post('/employee/customers', { name, phone, area, address: finalAddress });
+    const res = await api.post('/employee/customers', {
+      name,
+      phone,
+      email,
+      area,
+      address: finalAddress,
+      net_salary: netSalary,
+      total_obligation: totalObligation
+    });
     btn.disabled = false; btn.textContent = 'Add Customer';
     if (!res?.ok) return showAlert('page-alert', res?.data?.message || 'Error.', 'error');
     newCustomerId = res.data.id;
@@ -535,14 +368,32 @@
     document.getElementById('create-loan-link').href = `/employee/loans.html?customer_id=${newCustomerId}`;
     document.getElementById('upload-section').style.display = 'block';
     document.getElementById('upload-placeholder').style.display = 'none';
-    ['cust-name','cust-phone','cust-area','cust-address','cust-quick-paste'].forEach(id => document.getElementById(id).value = '');
+    ['cust-name','cust-phone','cust-email','cust-area','cust-address','cust-quick-paste','cust-net-salary','cust-total-obligation'].forEach(id => document.getElementById(id).value = '');
     loadMyCustomers();
+  }
+
+  function handleDocTypeChange() {
+    const docType = document.getElementById('doc-type').value;
+    const otherGroup = document.getElementById('other-doc-type-group');
+    if (docType === 'Other') {
+      otherGroup.style.display = 'block';
+    } else {
+      otherGroup.style.display = 'none';
+      document.getElementById('other-doc-type').value = '';
+    }
   }
 
   async function uploadDocument() {
     if (!newCustomerId) return showAlert('page-alert', 'Add a customer first.', 'error');
     const files = Array.from(document.getElementById('doc-file').files || []);
-    const docType = document.getElementById('doc-type').value;
+    let docType = document.getElementById('doc-type').value;
+    
+    if (docType === 'Other') {
+      const otherVal = document.getElementById('other-doc-type').value.trim();
+      if (!otherVal) return showAlert('page-alert', 'Please specify the document type.', 'error');
+      docType = otherVal;
+    }
+
     const documentPassword = document.getElementById('doc-password').value.trim();
     if (!files.length) return showAlert('page-alert', 'Select at least one file.', 'error');
     const form = new FormData();
@@ -555,8 +406,28 @@
     btn.disabled = false; btn.textContent = '⬆️ Upload Document';
     if (!res?.ok) return showAlert('page-alert', res?.data?.message || 'Upload failed.', 'error');
     showAlert('page-alert', `${files.length} document${files.length > 1 ? 's' : ''} uploaded!`, 'success');
+    
+    // Clear and reset inputs
     document.getElementById('doc-file').value = '';
     document.getElementById('doc-password').value = '';
+    document.getElementById('other-doc-type').value = '';
+    document.getElementById('other-doc-type-group').style.display = 'none';
+    document.getElementById('doc-type').value = 'Aadhar';
+
+    // Reset password visibility state
+    const passwordInput = document.getElementById('doc-password');
+    const toggleBtn = document.querySelector('.toggle-password');
+    if (passwordInput && toggleBtn) {
+      passwordInput.type = 'password';
+      toggleBtn.classList.remove('visible');
+      toggleBtn.setAttribute('aria-label', 'Show Password');
+      toggleBtn.setAttribute('title', 'Show Password');
+      const svg = toggleBtn.querySelector('svg');
+      if (svg) {
+        svg.innerHTML = '<path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/>';
+      }
+    }
+
     const uploadedDocuments = Array.isArray(res.data.documents) ? res.data.documents : [];
     const safePassword = documentPassword || res.data.document?.document_password || '';
     const escapeHtml = (value) => String(value ?? '')
@@ -604,6 +475,47 @@
     if (docRow) {
       docRow.remove();
     }
+  }
+
+  // ── Show/Hide Document Password Toggle ──────────────────────
+  const DOC_EYE_PATHS = {
+    eye: '<path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/>',
+    eyeOff: '<path d="M3 3l18 18"/><path d="M10.5 10.5a2.5 2.5 0 1 0 3 3"/><path d="M6.2 6.2C3.9 7.9 2 12 2 12s3.5 6 10 6c1.3 0 2.5-.2 3.6-.6"/><path d="M14.6 4.6C13.8 4.2 12.9 4 12 4c-6.5 0-10 8-10 8a20.1 20.1 0 0 0 4.8 5.7"/>'
+  };
+
+  function getOrCreateDocEyeSvg(btn) {
+    let svg = btn.querySelector('svg');
+    if (!svg) {
+      svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('viewBox', '0 0 24 24');
+      svg.setAttribute('width', '18');
+      svg.setAttribute('height', '18');
+      svg.setAttribute('fill', 'none');
+      svg.setAttribute('stroke', 'currentColor');
+      svg.setAttribute('stroke-width', '1.8');
+      svg.setAttribute('stroke-linecap', 'round');
+      svg.setAttribute('stroke-linejoin', 'round');
+      svg.setAttribute('aria-hidden', 'true');
+      // Remove span placeholder so SVG is the only child
+      btn.innerHTML = '';
+      btn.appendChild(svg);
+    }
+    return svg;
+  }
+
+  function togglePasswordVisibility() {
+    const passwordInput = document.getElementById('doc-password');
+    const toggleBtn = document.querySelector('.toggle-password');
+    if (!passwordInput || !toggleBtn) return;
+
+    const isHidden = passwordInput.type === 'password';
+    passwordInput.type = isHidden ? 'text' : 'password';
+    toggleBtn.classList.toggle('visible', isHidden);
+    toggleBtn.setAttribute('aria-label', isHidden ? 'Hide Password' : 'Show Password');
+    toggleBtn.setAttribute('title', isHidden ? 'Hide Password' : 'Show Password');
+
+    const svg = getOrCreateDocEyeSvg(toggleBtn);
+    svg.innerHTML = isHidden ? DOC_EYE_PATHS.eyeOff : DOC_EYE_PATHS.eye;
   }
 </script>
 </body>

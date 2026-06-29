@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CLN Lending Suite — Employee APR</title>
+  <meta name="theme-color" content="#0f2747" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
+  <link rel="stylesheet" href="/css/styles.css" />
+  <!-- FontAwesome for icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+  <style>
+    /* ═══ Scoped styles for Employee APR ════════════════════════════════════ */
+    .emp-apr-container {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 24px;
+    }
+    @media (max-width: 900px) {
+      .emp-apr-container {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* KPI Cards */
+    .emp-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+    .emp-stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      box-shadow: var(--shadow-soft);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      position: relative;
+    }
+    .emp-stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: var(--accent);
+      border-radius: var(--radius) var(--radius) 0 0;
+    }
+    .emp-stat-val {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--text-primary);
+    }
+    .emp-stat-lbl {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    /* Break Controls */
+    .break-control-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      box-shadow: var(--shadow-medium);
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+    .break-types-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+      gap: 10px;
+    }
+    .break-type-btn {
+      padding: 14px 10px;
+      border: 1.5px solid var(--border);
+      background: var(--bg-body);
+      color: var(--text-secondary);
+      border-radius: var(--radius);
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.22s ease;
+      font-family: inherit;
+      font-weight: 600;
+      font-size: 12px;
+    }
+    .break-type-btn i {
+      font-size: 18px;
+      color: var(--text-muted);
+      transition: color 0.22s;
+    }
+    .break-type-btn:hover {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+    .break-type-btn:hover i {
+      color: var(--accent);
+    }
+    .break-type-btn.active {
+      border-color: var(--accent);
+      background: linear-gradient(135deg, var(--accent) 0%, #173b6b 100%);
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(15, 39, 71, 0.18);
+    }
+    .break-type-btn.active i {
+      color: #fff;
+    }
+
+    .reason-textarea {
+      width: 100%;
+      min-height: 80px;
+      padding: 10px 12px;
+      border: 1.5px solid var(--border);
+      background: var(--bg-body);
+      color: var(--text-primary);
+      border-radius: var(--radius);
+      outline: none;
+      font-family: inherit;
+      font-size: 13px;
+      resize: vertical;
+      box-sizing: border-box;
+      transition: border-color 0.2s;
+    }
+    .reason-textarea:focus {
+      border-color: var(--accent);
+    }
+
+    .break-action-btns {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .btn-break-control {
+      padding: 12px;
+      border: none;
+      border-radius: var(--radius);
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+    .btn-start-break {
+      background: #f59e0b;
+      color: #fff;
+    }
+    .btn-start-break:hover:not(:disabled) {
+      background: #d97706;
+      box-shadow: 0 4px 10px rgba(245, 158, 11, 0.25);
+    }
+    .btn-end-break {
+      background: #22c55e;
+      color: #fff;
+    }
+    .btn-end-break:hover:not(:disabled) {
+      background: #16a34a;
+      box-shadow: 0 4px 10px rgba(34, 197, 94, 0.25);
+    }
+    .btn-break-control:disabled {
+      background: var(--border);
+      color: var(--text-muted);
+      cursor: not-allowed;
+    }
+
+    /* Active Break Banner */
+    .active-break-banner {
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #d97706;
+      font-weight: 600;
+      font-size: 13px;
+      margin-bottom: 16px;
+      animation: pulseBanner 2s infinite ease-in-out;
+    }
+    @keyframes pulseBanner {
+      0%, 100% { opacity: 0.95; }
+      50% { opacity: 0.8; }
+    }
+
+    /* Badges */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .status-badge.working { background: rgba(34, 197, 94, 0.12); color: #22c55e; }
+    .status-badge.on-break { background: rgba(245, 158, 11, 0.12); color: #f59e0b; }
+    .status-badge.logged-out { background: rgba(244, 63, 94, 0.12); color: #f43f5e; }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+        <div class="sidebar-logo">
+        <div class="logo-icon">CLN</div>
+        <div><h2>CLN Lending Suite</h2><span>Employee Workspace</span></div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">
+        <div class="nav-section-title">Main</div>
+        <a href="/employee/dashboard.html" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg></span> Dashboard</a>
+        <a href="/employee/add-customer.html" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg></span> Add Customer</a>
+        <a href="/employee/my-customers.html" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span> My Customers</a>
+        <a href="/employee/loans.html" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></span> My Loans</a>
+        <a href="/employee/emi-calculator.html" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/><line x1="9" y1="9" x2="9" y2="17"/><line x1="15" y1="9" x2="15" y2="17"/></svg></span> EMI Calculator</a>
+        <a href="/employee/data-excel.html" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/></svg></span> My Assigned Data</a>
+        <a href="/employee/apr.html" class="nav-item active"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span> APR</a>
+
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-info">
+        <div class="user-avatar" id="sidebar-user-avatar">E</div>
+        <div class="user-details"><p id="sidebar-user-name">Employee</p><span id="sidebar-user-role">employee</span></div>
+      </div>
+      <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
+  </aside>
+
+  <!-- Mobile overlay -->
+  <div class="sidebar-overlay" onclick="toggleMobileSidebar()"></div>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <div class="topbar">
+      <button class="mobile-menu-btn" onclick="toggleMobileSidebar()" title="Toggle menu">Menu</button>
+      <div class="topbar-title">
+        <h2>My APR</h2>
+        <p>Manage your attendance status, break sessions, and track login logs</p>
+      </div>
+    </div>
+
+    <div class="page-content">
+      <div id="page-alert" class="alert" style="display:none;margin-bottom:16px;"></div>
+
+      <div class="emp-apr-container">
+        
+        <!-- Left Side: Status & Controls -->
+        <div>
+          <!-- Active Break timer notification banner -->
+          <div id="active-break-banner" class="active-break-banner" style="display:none;">
+            <span><i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i> Active Break: <strong id="active-break-type-lbl">Tea Break</strong></span>
+            <span id="active-break-timer" style="font-family:monospace;font-size:14px;background:rgba(0,0,0,0.1);padding:3px 8px;border-radius:4px;">00:00</span>
+          </div>
+
+          <!-- Employee APR Dashboard widgets -->
+          <div class="emp-stats-grid">
+            <div class="emp-stat-card">
+              <span class="emp-stat-lbl">Current Status</span>
+              <div class="emp-stat-val" id="stat-status" style="font-size:18px;margin-top:6px;"><span class="status-badge working">Working</span></div>
+            </div>
+            <div class="emp-stat-card">
+              <span class="emp-stat-lbl">Login Time</span>
+              <div class="emp-stat-val" id="stat-login-time" style="font-size:18px;margin-top:6px;">—</div>
+            </div>
+            <div class="emp-stat-card">
+              <span class="emp-stat-lbl">Session Time</span>
+              <div class="emp-stat-val" id="stat-session" style="font-size:18px;margin-top:6px;">0 mins</div>
+            </div>
+            <div class="emp-stat-card">
+              <span class="emp-stat-lbl">Total Work Today</span>
+              <div class="emp-stat-val" id="stat-work-hours" style="font-size:18px;margin-top:6px;">0.00 hrs</div>
+            </div>
+          </div>
+
+          <!-- Break controller card -->
+          <div class="break-control-card">
+            <h3 style="margin:0;"><i class="fas fa-mug-hot" style="margin-right:8px;color:var(--accent);"></i>Take a Break</h3>
+            <p style="color:var(--text-secondary);font-size:12px;margin:0 0 10px;">Select a break category below. "Other Break" requires you to enter a mandatory remark/reason.</p>
+
+            <div class="break-types-grid">
+              <button class="break-type-btn" id="btn-type-tea" onclick="selectBreakType('Tea Break')">
+                <i class="fas fa-coffee"></i> Tea Break
+              </button>
+              <button class="break-type-btn" id="btn-type-lunch" onclick="selectBreakType('Lunch Break')">
+                <i class="fas fa-utensils"></i> Lunch Break
+              </button>
+              <button class="break-type-btn" id="btn-type-personal" onclick="selectBreakType('Personal Break')">
+                <i class="fas fa-user-clock"></i> Personal Break
+              </button>
+              <button class="break-type-btn" id="btn-type-meeting" onclick="selectBreakType('Meeting Break')">
+                <i class="fas fa-users"></i> Meeting Break
+              </button>
+              <button class="break-type-btn" id="btn-type-other" onclick="selectBreakType('Other Break')">
+                <i class="fas fa-ellipsis-h"></i> Other Break
+              </button>
+            </div>
+
+            <!-- Custom Reason (Only for Other Break) -->
+            <div id="reason-container" style="display:none; flex-direction:column; gap:6px;">
+              <label class="emp-stat-lbl">Reason for Break <span style="color:var(--danger);">*</span></label>
+              <textarea id="break-reason" class="reason-textarea" placeholder="Please enter the reason for taking this break..."></textarea>
+            </div>
+
+            <!-- Controls -->
+            <div class="break-action-btns">
+              <button class="btn-break-control btn-start-break" id="btn-start" onclick="startBreak()">
+                <i class="fas fa-play"></i> Start Break
+              </button>
+              <button class="btn-break-control btn-end-break" id="btn-end" onclick="endBreak()">
+                <i class="fas fa-stop"></i> End Break
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Side: Break History -->
+        <div>
+          <div class="card full-table" style="height: 100%; box-sizing: border-box;">
+            <div class="card-header">
+              <h3><i class="fas fa-history" style="margin-right:8px;color:var(--accent);"></i>Today's Break History</h3>
+            </div>
+            <div class="table-wrapper" style="max-height: 480px; overflow-y: auto;">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Break Type</th>
+                    <th>Start Time</th>
+                    <th>End Time</th>
+                    <th>Duration</th>
+                    <th>Remarks</th>
+                  </tr>
+                </thead>
+                <tbody id="history-tbody">
+                  <tr><td colspan="6" style="text-align:center;color:var(--text-muted);">No breaks taken today.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="/js/runtime-config.js?v=20260523a"></script>
+<script src="/js/api.js?v=20260516c"></script>
+<script>
+  const user = requireRole('employee');
+  if (user) {
+    renderSidebarUser();
+    initEmployeeAPR();
+  }
+
+  let selectedBreakType = null;
+  let activeBreakTimerId = null;
+  let activeBreakStartTime = null;
+
+  function initEmployeeAPR() {
+    refreshDashboard();
+    // Refresh stats every 10 seconds silently
+    setInterval(refreshDashboard, 10000);
+  }
+
+  function showAlert(msg, type = 'error') {
+    const alertEl = document.getElementById('page-alert');
+    alertEl.textContent = msg;
+    alertEl.className = `alert alert-${type} show`;
+    alertEl.style.display = 'block';
+    setTimeout(() => {
+      alertEl.style.display = 'none';
+    }, 6000);
+  }
+
+  function selectBreakType(type) {
+    selectedBreakType = type;
+    document.querySelectorAll('.break-type-btn').forEach(btn => {
+      const match = btn.getAttribute('onclick').match(/'([^']+)'/);
+      btn.classList.toggle('active', match && match[1] === type);
+    });
+    document.getElementById('reason-container').style.display = type === 'Other Break' ? 'flex' : 'none';
+  }
+
+  async function refreshDashboard() {
+    try {
+      const res = await api.get('/apr/employee/dashboard');
+      if (!res?.ok) return;
+      const d = res.data.data;
+
+      // Update widget stats
+      const statusEl = document.getElementById('stat-status');
+      let statusBadge = '';
+      if (d.currentStatus === 'Available' || d.currentStatus === 'Idle' || d.currentStatus === 'Working') {
+        statusBadge = '<span class="status-badge working">Working</span>';
+      } else if (d.currentStatus === 'On Break') {
+        statusBadge = '<span class="status-badge on-break">On Break</span>';
+      } else {
+        statusBadge = `<span class="status-badge logged-out">${d.currentStatus}</span>`;
+      }
+      statusEl.innerHTML = statusBadge;
+
+      const fmtT = t => t ? new Date(t).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) : '—';
+      document.getElementById('stat-login-time').textContent = fmtT(d.loginTime);
+      document.getElementById('stat-session').textContent = `${d.sessionDuration || 0} mins`;
+      document.getElementById('stat-work-hours').textContent = `${Number(d.totalWorkingHours).toFixed(2)} hrs`;
+
+      // Handle active break states
+      const startBtn = document.getElementById('btn-start');
+      const endBtn = document.getElementById('btn-end');
+      const banner = document.getElementById('active-break-banner');
+
+      if (d.activeBreak) {
+        startBtn.disabled = true;
+        endBtn.disabled = false;
+        banner.style.display = 'flex';
+        document.getElementById('active-break-type-lbl').textContent = d.activeBreak.break_type;
+        
+        activeBreakStartTime = new Date(d.activeBreak.start_time).getTime();
+        
+        // start visual ticking timer
+        if (!activeBreakTimerId) {
+          updateTimerUI();
+          activeBreakTimerId = setInterval(updateTimerUI, 1000);
+        }
+      } else {
+        startBtn.disabled = false;
+        endBtn.disabled = true;
+        banner.style.display = 'none';
+        
+        if (activeBreakTimerId) {
+          clearInterval(activeBreakTimerId);
+          activeBreakTimerId = null;
+        }
+      }
+
+      await loadHistoryTable();
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  function updateTimerUI() {
+    if (!activeBreakStartTime) return;
+    const elapsedSec = Math.floor((Date.now() - activeBreakStartTime) / 1000);
+    const mm = String(Math.floor(elapsedSec / 60)).padStart(2, '0');
+    const ss = String(elapsedSec % 60).padStart(2, '0');
+    document.getElementById('active-break-timer').textContent = `${mm}:${ss}`;
+  }
+
+  async function loadHistoryTable() {
+    const res = await api.get('/apr/employee/break/history');
+    if (!res?.ok) return;
+    
+    const tbody = document.getElementById('history-tbody');
+    if (res.data.data.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--text-muted);">No breaks taken today.</td></tr>`;
+      return;
+    }
+
+    const fmtT = t => t ? new Date(t).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) : '—';
+    const fmtD = d => new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+
+    tbody.innerHTML = res.data.data.map(r => `
+      <tr>
+        <td>${fmtD(r.date)}</td>
+        <td><strong>${r.break_type}</strong></td>
+        <td>${fmtT(r.start_time)}</td>
+        <td>${fmtT(r.end_time)}</td>
+        <td>${r.duration}</td>
+        <td><span style="font-size:11px;color:var(--text-secondary);">${r.remarks}</span></td>
+      </tr>
+    `).join('');
+  }
+
+  async function startBreak() {
+    if (!selectedBreakType) {
+      showAlert('Please select a break type first.');
+      return;
+    }
+
+    let reason = '';
+    if (selectedBreakType === 'Other Break') {
+      reason = document.getElementById('break-reason').value.trim();
+      if (!reason) {
+        showAlert('Reason is mandatory for "Other Break".');
+        return;
+      }
+    }
+
+    try {
+      const res = await api.post('/break-time/start', {
+        break_type: selectedBreakType,
+        custom_reason: reason
+      });
+
+      if (res?.ok) {
+        showAlert('Break started successfully.', 'success');
+        document.getElementById('break-reason').value = '';
+        selectedBreakType = null;
+        document.querySelectorAll('.break-type-btn').forEach(btn => btn.classList.remove('active'));
+        document.getElementById('reason-container').style.display = 'none';
+        refreshDashboard();
+      } else {
+        showAlert(res?.data?.message || 'Failed to start break.');
+      }
+    } catch (e) {
+      showAlert('Network error occurred.');
+    }
+  }
+
+  async function endBreak() {
+    try {
+      const res = await api.post('/break-time/end');
+      if (res?.ok) {
+        showAlert('Welcome back! Break ended successfully.', 'success');
+        refreshDashboard();
+      } else {
+        showAlert(res?.data?.message || 'Failed to end break.');
+      }
+    } catch (e) {
+      showAlert('Network error occurred.');
+    }
+  }
+</script>
+</body>
+</html>

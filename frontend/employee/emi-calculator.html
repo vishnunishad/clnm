@@ -1,0 +1,1751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CLN Lending Suite — EMI Calculator</title>
+  <meta name="theme-color" content="#0f2747" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
+  <link rel="stylesheet" href="/css/styles.css" />
+  <style>
+    /* Tabs Navigation */
+    .tabs-navigation {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 24px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 10px;
+      margin-top: 10px;
+    }
+    .tab-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      cursor: pointer;
+      border-radius: var(--radius-sm);
+      transition: all 0.2s ease;
+    }
+    .tab-btn:hover {
+      color: var(--accent);
+      background: var(--accent-soft);
+    }
+    .tab-btn.active {
+      color: #fff;
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+    :root[data-theme='dark'] .tab-btn.active {
+      color: var(--text-primary);
+      background: var(--accent);
+    }
+
+    /* Stacking for Comparison Grid on Mobile */
+    @media (max-width: 768px) {
+      .compare-columns-grid {
+        grid-template-columns: 1fr !important;
+        gap: 20px !important;
+      }
+      #compare-opt1-container {
+        border-right: none !important;
+        padding-right: 0 !important;
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 20px;
+      }
+    }
+
+    /* Highlight states for comparison rows */
+    .comp-better-val {
+      color: var(--success) !important;
+      font-weight: 600;
+    }
+    .comp-worse-val {
+      color: var(--danger) !important;
+      font-weight: 600;
+    }
+    .comp-neutral-val {
+      color: var(--text-primary);
+    }
+    .comp-diff-positive {
+      color: var(--success);
+      font-weight: 600;
+    }
+    .comp-diff-negative {
+      color: var(--danger);
+      font-weight: 600;
+    }
+  </style>
+  <!-- Chart.js and Export libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body>
+<div class="app-layout">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">
+        <div class="logo-icon">CLN</div>
+        <div><h2><span class="emoji-sm">💼</span>CLN Lending Suite</h2><span>Employee Workspace</span></div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">
+        <div class="nav-section-title">Main</div>
+        <a href="/employee/dashboard.html" class="nav-item"><span class="nav-icon emoji-sm">📊</span> Dashboard</a>
+        <a href="/employee/add-customer.html" class="nav-item"><span class="nav-icon emoji-sm">➕</span> Add Customer</a>
+        <a href="/employee/my-customers.html" class="nav-item"><span class="nav-icon emoji-sm">👥</span> My Customers</a>
+        <a href="/employee/loans.html" class="nav-item"><span class="nav-icon emoji-sm">💼</span> My Loans</a>
+        <a href="/employee/emi-calculator.html" class="nav-item active"><span class="nav-icon emoji-sm">🧮</span> EMI Calculator</a>
+        <a href="/employee/data-excel.html" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/></svg></span> My Assigned Data</a>
+        <a href="/employee/apr.html" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span> APR</a>
+
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-info">
+        <div class="user-avatar" id="sidebar-user-avatar">E</div>
+        <div class="user-details"><p id="sidebar-user-name">Employee</p><span id="sidebar-user-role">employee</span></div>
+      </div>
+      <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
+  </aside>
+
+  <!-- Mobile overlay -->
+  <div class="sidebar-overlay" onclick="toggleMobileSidebar()"></div>
+
+  <!-- Main -->
+  <main class="main-content">
+    <div class="topbar">
+      <button class="mobile-menu-btn" onclick="toggleMobileSidebar()" title="Toggle menu">Menu</button>
+      <div class="topbar-title"><h2><span class="emoji">🧮</span>EMI Calculator</h2><p>Calculate loan EMIs, view amortization schedules, and simulate prepayments</p></div>
+      <div class="topbar-actions">
+        <span id="current-date" style="font-size:13px;color:var(--text-secondary);"></span>
+      </div>
+    </div>
+
+    <div class="page-content">
+      <!-- Tabs Navigation -->
+      <div class="tabs-navigation">
+        <button type="button" class="tab-btn active" id="tab-btn-single" onclick="switchTab('single')">Single Loan Calculator</button>
+        <button type="button" class="tab-btn" id="tab-btn-compare" onclick="switchTab('compare')">Compare Loans</button>
+      </div>
+
+      <div id="tab-content-single">
+        <div class="emi-calculator-layout">
+        <!-- Input section (Left) -->
+        <div class="card" style="margin-bottom:0; height:100%;">
+          <div class="card-header">
+            <h3><span class="emoji-sm">🧮</span>Calculator Inputs</h3>
+          </div>
+          <div class="card-body">
+            <form id="emi-form" onsubmit="event.preventDefault();">
+              <div class="form-group">
+                <label for="input-principal">Loan Amount (Principal)</label>
+                <div style="position:relative;">
+                  <span style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--text-muted); font-weight:600;">₹</span>
+                  <input type="text" id="input-principal" class="form-control" placeholder="10,00,000" style="padding-left:28px;" required />
+                </div>
+                <div class="error-msg" id="err-principal" style="color:var(--danger); font-size:12px; margin-top:4px; display:none;"></div>
+              </div>
+
+              <div class="form-group">
+                <label for="input-rate">Interest Rate (% p.a.)</label>
+                <input type="number" id="input-rate" step="0.01" class="form-control" placeholder="10.5" required />
+                <div class="error-msg" id="err-rate" style="color:var(--danger); font-size:12px; margin-top:4px; display:none;"></div>
+              </div>
+
+              <div class="form-group">
+                <label for="input-tenure">Loan Tenure</label>
+                <div class="tenure-group">
+                  <input type="number" id="input-tenure" class="form-control" placeholder="5" required />
+                  <div class="input-toggle-group">
+                    <button type="button" class="input-toggle-btn active" id="btn-years" onclick="setTenureUnit('years')">Years</button>
+                    <button type="button" class="input-toggle-btn" id="btn-months" onclick="setTenureUnit('months')">Months</button>
+                  </div>
+                </div>
+                <div class="error-msg" id="err-tenure" style="color:var(--danger); font-size:12px; margin-top:4px; display:none;"></div>
+              </div>
+
+              <div class="form-group">
+                <label for="input-fee">Processing Fee (%) (Optional)</label>
+                <input type="number" id="input-fee" step="0.01" class="form-control" placeholder="1.5" />
+                <div class="error-msg" id="err-fee" style="color:var(--danger); font-size:12px; margin-top:4px; display:none;"></div>
+              </div>
+
+              <div class="form-group">
+                <label for="input-prepayment">Prepayment Amount (Optional)</label>
+                <div style="position:relative;">
+                  <span style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--text-muted); font-weight:600;">₹</span>
+                  <input type="text" id="input-prepayment" class="form-control" placeholder="1,00,000" style="padding-left:28px;" />
+                </div>
+                <div class="error-msg" id="err-prepayment" style="color:var(--danger); font-size:12px; margin-top:4px; display:none;"></div>
+              </div>
+
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:20px;">
+                <button type="button" class="btn btn-secondary" onclick="resetCalculator()">Reset</button>
+                <button type="button" class="btn btn-primary" onclick="calculateEMI()">Calculate</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Outputs & Charts (Right) -->
+        <div>
+          <!-- Summary Cards -->
+          <div class="results-stats-grid">
+            <div class="stat-card result-card-highlight">
+              <div class="stat-icon">🧮</div>
+              <div class="primary-result-value" id="res-emi">₹0</div>
+              <div class="results-header-text">Monthly EMI</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">📈</div>
+              <div class="primary-result-value" id="res-interest" style="color:var(--danger);">₹0</div>
+              <div class="results-header-text">Total Interest Payable</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">💼</div>
+              <div class="primary-result-value" id="res-total">₹0</div>
+              <div class="results-header-text">Total Amount Payable</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">📄</div>
+              <div class="primary-result-value" id="res-fee">₹0</div>
+              <div class="results-header-text">Processing Fee</div>
+            </div>
+            <div class="stat-card" id="card-cost-savings">
+              <div class="stat-icon">💰</div>
+              <div class="primary-result-value" id="res-cost">₹0</div>
+              <div class="results-header-text" id="res-cost-label">Effective Cost of Loan</div>
+              <div id="savings-badge-container"></div>
+            </div>
+          </div>
+
+          <!-- Charts -->
+          <div class="calculator-charts-grid">
+            <!-- Pie Chart Card -->
+            <div class="card" style="margin-bottom:0;">
+              <div class="card-header">
+                <h3>Breakdown</h3>
+              </div>
+              <div class="card-body" style="display:flex; flex-direction:column; gap:20px; min-height:260px; justify-content:center; padding: 20px;">
+                <div style="display:flex; align-items:center; justify-content:center; gap:20px; flex-wrap:wrap;">
+                  <div style="width:100%; max-width:180px; position:relative;">
+                    <canvas id="chart-pie"></canvas>
+                  </div>
+                  <div style="flex:1; min-width:220px;" id="breakdown-details-container">
+                    <div style="text-align:center; color:var(--text-muted); font-size:13px; padding:20px 0;">
+                      Enter values above and click Calculate to view breakdown.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Amortization Chart Card -->
+            <div class="card" style="margin-bottom:0;">
+              <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+                <h3>Payment Amortization Trend</h3>
+                <div class="chart-header-actions">
+                  <div class="input-toggle-group">
+                    <button type="button" class="input-toggle-btn active" id="btn-chart-monthly" onclick="setChartGrouping('monthly')">Monthly</button>
+                    <button type="button" class="input-toggle-btn" id="btn-chart-yearly" onclick="setChartGrouping('yearly')">Yearly</button>
+                  </div>
+                </div>
+              </div>
+              <div class="card-body" style="position:relative; min-height:260px; max-height: 260px;">
+                <canvas id="chart-amortization"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Schedule Table Section -->
+      <div class="card full-table" style="margin-top:24px;">
+        <div class="table-controls-wrapper">
+          <div class="table-controls-left">
+            <div class="table-search-box">
+              <input type="text" id="table-search" class="form-control" placeholder="Search schedule (e.g. Month 12, July 2026)..." oninput="handleSearch()" />
+            </div>
+            <select id="table-limit" onchange="handleLimitChange()" style="width:80px; padding:8px 12px; border-radius:6px; border:1px solid var(--border);">
+              <option value="12">12 / page</option>
+              <option value="24">24 / page</option>
+              <option value="60">60 / page</option>
+              <option value="all">All</option>
+            </select>
+          </div>
+
+          <div class="table-controls-right">
+            <div class="export-btn-group">
+              <button class="btn btn-secondary export-btn" onclick="exportPDF()">
+                <span class="emoji-sm">📥</span>PDF Report
+              </button>
+              <button class="btn btn-secondary export-btn" onclick="exportExcel()">
+                <span class="emoji-sm">📊</span>Excel Export
+              </button>
+              <button class="btn btn-secondary export-btn" onclick="exportCSV()">
+                <span class="emoji-sm">📄</span>CSV Export
+              </button>
+              <button class="btn btn-secondary export-btn" onclick="window.print()">
+                <span class="emoji-sm">🖨️</span>Print
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th class="sortable asc" onclick="handleSort('emiNumber')">EMI #</th>
+                <th class="sortable" onclick="handleSort('paymentDate')">Payment Date</th>
+                <th class="sortable" onclick="handleSort('emiAmount')">EMI Amount</th>
+                <th class="sortable" onclick="handleSort('principalComponent')">Principal Component</th>
+                <th class="sortable" onclick="handleSort('interestComponent')">Interest Component</th>
+                <th class="sortable" onclick="handleSort('prepayment')">Prepayment</th>
+                <th class="sortable" onclick="handleSort('outstandingBalance')">Outstanding Balance</th>
+              </tr>
+            </thead>
+            <tbody id="schedule-tbody">
+              <tr>
+                <td colspan="7" class="text-center text-muted" style="padding:40px 0;">Enter values above and click Calculate to view schedule.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="pagination-container" id="pagination-wrapper" style="display:none;">
+          <div id="pagination-info" style="font-size:13px; color:var(--text-secondary);"></div>
+          <div class="pagination-buttons" id="pagination-btns"></div>
+        </div>
+      </div>
+      </div>
+
+      <!-- ── Compare Loans Tab Content ── -->
+      <div id="tab-content-compare" style="display: none;">
+        <div class="card" style="margin-bottom: 24px;">
+          <div class="card-header">
+            <h3><span class="emoji-sm">⚖️</span> Compare Two Loan Options</h3>
+          </div>
+          <div class="card-body">
+            <p style="color: var(--text-secondary); margin-bottom: 20px; font-size: 14px;">
+              Enter details for two loan options to compare EMIs, interest payable, and total repayment amounts. Select the better option and submit it directly as a client loan application.
+            </p>
+            <form id="compare-form" onsubmit="event.preventDefault();">
+              <div class="compare-columns-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+
+                <!-- Loan Option 1 -->
+                <div style="border-right: 1px solid var(--border); padding-right: 24px;" id="compare-opt1-container">
+                  <h4 style="margin-bottom: 16px; color: var(--accent); display: flex; align-items: center; gap: 6px;">
+                    <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--accent);"></span>
+                    Loan Option 1
+                  </h4>
+
+                  <div class="form-group">
+                    <label for="compare-principal-1">Loan Amount (₹) *</label>
+                    <div style="position:relative;">
+                      <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-weight:600;">₹</span>
+                      <input type="text" id="compare-principal-1" class="form-control compare-principal-input" placeholder="e.g. 10,00,000" style="padding-left:28px;" required />
+                    </div>
+                    <div class="error-msg" id="err-compare-principal-1" style="color:var(--danger);font-size:12px;margin-top:4px;display:none;"></div>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="compare-rate-1">Interest Rate (% p.a.) *</label>
+                    <input type="number" id="compare-rate-1" step="0.01" class="form-control" placeholder="e.g. 10.5" required />
+                    <div class="error-msg" id="err-compare-rate-1" style="color:var(--danger);font-size:12px;margin-top:4px;display:none;"></div>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="compare-tenure-1">Loan Tenure (Months) *</label>
+                    <input type="number" id="compare-tenure-1" class="form-control" placeholder="e.g. 60" required />
+                    <div class="error-msg" id="err-compare-tenure-1" style="color:var(--danger);font-size:12px;margin-top:4px;display:none;"></div>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="compare-bank-1">Bank / NBFC (Optional)</label>
+                    <select id="compare-bank-1" class="form-control">
+                      <option value="">Select Bank (optional)</option>
+                      <option value="BAJAJ FIN">Bajaj Finance</option>
+                      <option value="MMFSL">Mahindra Finance</option>
+                      <option value="SFL">Shriram Finance</option>
+                      <option value="CHOLA">Chola Finance</option>
+                      <option value="MUTHOOT">Muthoot Finance</option>
+                      <option value="MANAPPURAM">Manappuram Finance</option>
+                      <option value="LICHF">LIC Housing Finance</option>
+                      <option value="TATA CAP">Tata Capital</option>
+                      <option value="ABFL">Aditya Birla Finance</option>
+                      <option value="LTF">L&T Finance</option>
+                      <option value="POONAWALLA">Poonawalla Fincorp</option>
+                      <option value="HDBFS">HDB Financial</option>
+                      <option value="SUNDARM">Sundaram Finance</option>
+                      <option value="FIVE STAR">Five-Star Finance</option>
+                      <option value="UJJIVAN">Ujjivan Bank</option>
+                      <option value="AAVAS">Aavas Financiers</option>
+                      <option value="CREDITACC">CreditAccess</option>
+                      <option value="CAPRI">Capri Global</option>
+                      <option value="INDOSTAR">Indostar Capital</option>
+                      <option value="JMF">JM Financial</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                </div>
+
+                <!-- Loan Option 2 -->
+                <div id="compare-opt2-container">
+                  <h4 style="margin-bottom: 16px; color: var(--accent-secondary, #2f6fed); display: flex; align-items: center; gap: 6px;">
+                    <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--accent-secondary, #2f6fed);"></span>
+                    Loan Option 2
+                  </h4>
+
+                  <div class="form-group">
+                    <label for="compare-principal-2">Loan Amount (₹) *</label>
+                    <div style="position:relative;">
+                      <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-weight:600;">₹</span>
+                      <input type="text" id="compare-principal-2" class="form-control compare-principal-input" placeholder="e.g. 10,00,000" style="padding-left:28px;" required />
+                    </div>
+                    <div class="error-msg" id="err-compare-principal-2" style="color:var(--danger);font-size:12px;margin-top:4px;display:none;"></div>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="compare-rate-2">Interest Rate (% p.a.) *</label>
+                    <input type="number" id="compare-rate-2" step="0.01" class="form-control" placeholder="e.g. 11.0" required />
+                    <div class="error-msg" id="err-compare-rate-2" style="color:var(--danger);font-size:12px;margin-top:4px;display:none;"></div>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="compare-tenure-2">Loan Tenure (Months) *</label>
+                    <input type="number" id="compare-tenure-2" class="form-control" placeholder="e.g. 60" required />
+                    <div class="error-msg" id="err-compare-tenure-2" style="color:var(--danger);font-size:12px;margin-top:4px;display:none;"></div>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="compare-bank-2">Bank / NBFC (Optional)</label>
+                    <select id="compare-bank-2" class="form-control">
+                      <option value="">Select Bank (optional)</option>
+                      <option value="BAJAJ FIN">Bajaj Finance</option>
+                      <option value="MMFSL">Mahindra Finance</option>
+                      <option value="SFL">Shriram Finance</option>
+                      <option value="CHOLA">Chola Finance</option>
+                      <option value="MUTHOOT">Muthoot Finance</option>
+                      <option value="MANAPPURAM">Manappuram Finance</option>
+                      <option value="LICHF">LIC Housing Finance</option>
+                      <option value="TATA CAP">Tata Capital</option>
+                      <option value="ABFL">Aditya Birla Finance</option>
+                      <option value="LTF">L&T Finance</option>
+                      <option value="POONAWALLA">Poonawalla Fincorp</option>
+                      <option value="HDBFS">HDB Financial</option>
+                      <option value="SUNDARM">Sundaram Finance</option>
+                      <option value="FIVE STAR">Five-Star Finance</option>
+                      <option value="UJJIVAN">Ujjivan Bank</option>
+                      <option value="AAVAS">Aavas Financiers</option>
+                      <option value="CREDITACC">CreditAccess</option>
+                      <option value="CAPRI">Capri Global</option>
+                      <option value="INDOSTAR">Indostar Capital</option>
+                      <option value="JMF">JM Financial</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                </div>
+
+              </div>
+
+              <!-- Action Buttons -->
+              <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:24px;border-top:1px solid var(--border);padding-top:20px;flex-wrap:wrap;">
+                <button type="button" class="btn btn-secondary" onclick="resetCompare()">Reset</button>
+                <button type="button" class="btn btn-primary" onclick="calculateCompare()">Calculate</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Comparison Results Section -->
+        <div id="compare-results-section" style="display:none;">
+
+          <!-- Recommendation card -->
+          <div id="compare-recommendation-card" style="margin-bottom:24px;padding:20px;border-radius:8px;display:flex;align-items:flex-start;gap:16px;">
+          </div>
+
+          <!-- Potential Savings Stat Grid -->
+          <div class="results-stats-grid">
+            <div class="stat-card" style="border-left:5px solid var(--success);">
+              <div class="stat-icon" style="color:var(--success);">💰</div>
+              <div class="primary-result-value" id="comp-savings-val" style="color:var(--success);">₹0</div>
+              <div class="results-header-text">Potential Savings</div>
+            </div>
+            <div class="stat-card" style="border-left:5px solid var(--accent);">
+              <div class="stat-icon" style="color:var(--accent);">📊</div>
+              <div class="primary-result-value" id="comp-emi-diff-val">₹0</div>
+              <div class="results-header-text">Monthly EMI Difference</div>
+            </div>
+            <div class="stat-card" style="border-left:5px solid var(--warning);">
+              <div class="stat-icon" style="color:var(--warning);">📈</div>
+              <div class="primary-result-value" id="comp-interest-diff-val" style="color:var(--warning);">₹0</div>
+              <div class="results-header-text">Interest Cost Difference</div>
+            </div>
+          </div>
+
+          <!-- Comparison Table Card -->
+          <div class="card full-table" style="margin-bottom:24px;">
+            <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+              <h3><span class="emoji-sm">📊</span> Comparison Details</h3>
+              <div class="export-btn-group" style="margin:0;">
+                <button class="btn btn-secondary export-btn" onclick="exportComparePDF()">
+                  <span class="emoji-sm">📥</span>PDF Report
+                </button>
+                <button class="btn btn-secondary export-btn" onclick="exportCompareExcel()">
+                  <span class="emoji-sm">📊</span>Excel Export
+                </button>
+                <button class="btn btn-secondary export-btn" onclick="window.print()">
+                  <span class="emoji-sm">🖨️</span>Print
+                </button>
+                <button class="btn btn-secondary export-btn" onclick="shareCompare()">
+                  <span class="emoji-sm">🔗</span>Share
+                </button>
+              </div>
+            </div>
+
+            <div class="table-wrapper">
+              <table style="text-align:left;width:100%;border-collapse:collapse;">
+                <thead>
+                  <tr style="background:var(--bg-secondary);">
+                    <th style="padding:12px;font-weight:600;">Details</th>
+                    <th style="padding:12px;font-weight:600;" id="table-header-opt1">Loan Option 1</th>
+                    <th style="padding:12px;font-weight:600;" id="table-header-opt2">Loan Option 2</th>
+                    <th style="padding:12px;font-weight:600;">Difference</th>
+                  </tr>
+                </thead>
+                <tbody id="compare-table-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="/js/runtime-config.js?v=20260523a"></script>
+<script src="/js/api.js?v=20260516c"></script>
+<script>
+  const user = requireRole('employee');
+  if (user) {
+    renderSidebarUser();
+    document.getElementById('current-date').textContent = new Date().toLocaleDateString('en-IN', { weekday:'long', day:'2-digit', month:'long', year:'numeric' });
+  }
+
+  // State parameters
+  let tenureUnit = 'years'; // 'years' or 'months'
+  let chartGrouping = 'monthly'; // 'monthly' or 'yearly'
+  let calculatedData = {
+    originalSchedule: [],
+    prepaySchedule: [],
+    hasPrepayment: false,
+    summary: {}
+  };
+
+  // Pagination & table state
+  let currentPage = 1;
+  let rowsPerPage = 12;
+  let sortColumn = 'emiNumber';
+  let sortOrder = 'asc'; // 'asc' or 'desc'
+  let searchQuery = '';
+
+  // Chart instances
+  let pieChartInstance = null;
+  let lineChartInstance = null;
+
+  // Initialize Input Formatters
+  const principalInput = document.getElementById('input-principal');
+  const prepaymentInput = document.getElementById('input-prepayment');
+
+  function formatInputValue(input) {
+    const rawVal = input.value.replace(/[^0-9]/g, '');
+    if (!rawVal) {
+      input.value = '';
+      return;
+    }
+    input.value = Number(rawVal).toLocaleString('en-IN');
+  }
+
+  principalInput.addEventListener('input', () => formatInputValue(principalInput));
+  prepaymentInput.addEventListener('input', () => formatInputValue(prepaymentInput));
+
+  function setTenureUnit(unit) {
+    tenureUnit = unit;
+    document.getElementById('btn-years').classList.toggle('active', unit === 'years');
+    document.getElementById('btn-months').classList.toggle('active', unit === 'months');
+    const input = document.getElementById('input-tenure');
+    if (unit === 'years') {
+      input.placeholder = '5';
+    } else {
+      input.placeholder = '60';
+    }
+    // Auto-calculate if already calculated
+    if (calculatedData.originalSchedule.length > 0) {
+      calculateEMI();
+    }
+  }
+
+  function setChartGrouping(grouping) {
+    chartGrouping = grouping;
+    document.getElementById('btn-chart-monthly').classList.toggle('active', grouping === 'monthly');
+    document.getElementById('btn-chart-yearly').classList.toggle('active', grouping === 'yearly');
+    if (calculatedData.originalSchedule.length > 0) {
+      renderAmortizationChart();
+    }
+  }
+
+  // Clear errors
+  function clearErrors() {
+    document.querySelectorAll('.error-msg').forEach(el => {
+      el.textContent = '';
+      el.style.display = 'none';
+    });
+  }
+
+  // Show error
+  function showError(id, msg) {
+    const el = document.getElementById(id);
+    if (el) {
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
+  }
+
+  // Main Calculation Engine
+  function calculateEMI() {
+    clearErrors();
+
+    // Parse Inputs
+    const principalStr = principalInput.value.replace(/,/g, '');
+    const rateStr = document.getElementById('input-rate').value;
+    const tenureStr = document.getElementById('input-tenure').value;
+    const feeStr = document.getElementById('input-fee').value;
+    const prepayStr = prepaymentInput.value.replace(/,/g, '');
+
+    const principal = parseFloat(principalStr);
+    const rateVal = parseFloat(rateStr);
+    const tenureVal = parseFloat(tenureStr);
+    const feePercent = feeStr ? parseFloat(feeStr) : 0;
+    const prepayment = prepayStr ? parseFloat(prepayStr) : 0;
+
+    // Validations
+    let hasError = false;
+    if (isNaN(principal) || principal <= 0) {
+      showError('err-principal', 'Please enter a valid loan amount greater than 0.');
+      hasError = true;
+    }
+    if (isNaN(rateVal) || rateVal < 0 || rateVal > 100) {
+      showError('err-rate', 'Interest rate must be between 0% and 100%.');
+      hasError = true;
+    }
+    if (isNaN(tenureVal) || tenureVal <= 0 || !Number.isInteger(tenureVal)) {
+      showError('err-tenure', 'Tenure must be a positive whole number.');
+      hasError = true;
+    }
+    if (isNaN(feePercent) || feePercent < 0 || feePercent > 100) {
+      showError('err-fee', 'Processing fee must be between 0% and 100%.');
+      hasError = true;
+    }
+    if (prepayStr && (isNaN(prepayment) || prepayment < 0 || prepayment > principal)) {
+      showError('err-prepayment', 'Prepayment amount cannot exceed the principal loan amount.');
+      hasError = true;
+    }
+
+    if (hasError) return;
+
+    // Total months calculation
+    const totalMonths = tenureUnit === 'years' ? tenureVal * 12 : tenureVal;
+    if (totalMonths > 600) {
+      showError('err-tenure', 'Maximum supported tenure is 50 years (600 months).');
+      return;
+    }
+
+    // Processing Fee Amount
+    const feeAmount = principal * (feePercent / 100);
+
+    // Calculate Original Schedule
+    const originalResult = runAmortizationSchedule(principal, rateVal, totalMonths, 0);
+    
+    // Calculate Prepayment Schedule if applicable
+    let prepayResult = null;
+    const hasPrepay = prepayment > 0;
+    if (hasPrepay) {
+      prepayResult = runAmortizationSchedule(principal, rateVal, totalMonths, prepayment);
+    }
+
+    // Compile calculated data
+    calculatedData = {
+      originalSchedule: originalResult.schedule,
+      prepaySchedule: hasPrepay ? prepayResult.schedule : originalResult.schedule,
+      hasPrepayment: hasPrepay,
+      summary: {
+        principal: principal,
+        rate: rateVal,
+        tenureMonths: totalMonths,
+        processingFee: feeAmount,
+        originalEMI: originalResult.emi,
+        originalTotalInterest: originalResult.totalInterest,
+        originalTotalAmount: originalResult.totalAmount,
+        prepayEMI: hasPrepay ? prepayResult.emi : originalResult.emi,
+        prepayTotalInterest: hasPrepay ? prepayResult.totalInterest : originalResult.totalInterest,
+        prepayTotalAmount: hasPrepay ? prepayResult.totalAmount : originalResult.totalAmount,
+        interestSaved: hasPrepay ? (originalResult.totalInterest - prepayResult.totalInterest) : 0,
+        tenureReducedMonths: hasPrepay ? (originalResult.schedule.length - prepayResult.schedule.length) : 0
+      }
+    };
+
+    // Update UI Results
+    renderSummaryResults();
+    renderPieChart();
+    renderAmortizationChart();
+    
+    // Reset table variables
+    currentPage = 1;
+    renderRepaymentTable();
+  }
+
+  // Generates amortization details
+  function runAmortizationSchedule(principal, annualRate, totalMonths, prepayVal) {
+    const monthlyRate = annualRate / 12 / 100;
+    
+    // Standard EMI formula
+    let emi = 0;
+    if (monthlyRate === 0) {
+      emi = principal / totalMonths;
+    } else {
+      emi = (principal * monthlyRate * Math.pow(1 + monthlyRate, totalMonths)) / (Math.pow(1 + monthlyRate, totalMonths) - 1);
+    }
+
+    let balance = principal;
+    let totalInterest = 0;
+    const schedule = [];
+    let month = 1;
+
+    while (balance > 0.01 && month <= 600) {
+      let interest = balance * monthlyRate;
+      let principalPaid = emi - interest;
+
+      if (principalPaid > balance) {
+        principalPaid = balance;
+      }
+
+      // Prepayment applied at the end of Month 1 (after the regular EMI payment is completed)
+      let prepayMade = 0;
+      if (month === 1 && prepayVal > 0) {
+        prepayMade = Math.min(prepayVal, balance - principalPaid);
+      }
+
+      const openingBalance = balance;
+      balance = openingBalance - principalPaid - prepayMade;
+      totalInterest += interest;
+
+      schedule.push({
+        emiNumber: month,
+        paymentDate: getNextPaymentDate(month),
+        emiAmount: emi,
+        principalComponent: principalPaid,
+        interestComponent: interest,
+        prepayment: prepayMade,
+        outstandingBalance: Math.max(0, balance)
+      });
+
+      if (balance <= 0.01) {
+        break;
+      }
+      month++;
+    }
+
+    return {
+      emi: emi,
+      schedule: schedule,
+      totalInterest: totalInterest,
+      totalAmount: principal + totalInterest
+    };
+  }
+
+  // Date helper starting next month
+  function getNextPaymentDate(monthIndex) {
+    const d = new Date();
+    d.setMonth(d.getMonth() + monthIndex);
+    return d.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
+  }
+
+  // Currency helper formatting numbers
+  function formatValueCurrency(num) {
+    return '₹' + Math.round(num).toLocaleString('en-IN');
+  }
+
+  // Render text results in top stats
+  function renderSummaryResults() {
+    const sum = calculatedData.summary;
+    const activeSchedule = calculatedData.hasPrepayment ? calculatedData.prepaySchedule : calculatedData.originalSchedule;
+    
+    // EMI, Interest, Total fields
+    document.getElementById('res-emi').textContent = formatValueCurrency(sum.originalEMI);
+    document.getElementById('res-interest').textContent = formatValueCurrency(calculatedData.hasPrepayment ? sum.prepayTotalInterest : sum.originalTotalInterest);
+    document.getElementById('res-total').textContent = formatValueCurrency(calculatedData.hasPrepayment ? sum.prepayTotalAmount : sum.originalTotalAmount);
+    document.getElementById('res-fee').textContent = formatValueCurrency(sum.processingFee);
+
+    // Cost card / Prepayment logic
+    const costLabelEl = document.getElementById('res-cost-label');
+    const costValueEl = document.getElementById('res-cost');
+    const badgeContainer = document.getElementById('savings-badge-container');
+    badgeContainer.innerHTML = '';
+
+    if (calculatedData.hasPrepayment) {
+      costLabelEl.textContent = 'Effective Cost of Loan';
+      // Cost = Principal + Interest + Fee - Prepayment
+      const effCost = sum.principal + sum.prepayTotalInterest + sum.processingFee;
+      costValueEl.textContent = formatValueCurrency(effCost);
+      costValueEl.style.color = 'var(--success)';
+
+      // Append savings and tenure badges
+      const savingsValStr = formatValueCurrency(sum.interestSaved);
+      const savingsBadge = document.createElement('div');
+      savingsBadge.className = 'savings-badge';
+      savingsBadge.style.background = 'rgba(15, 139, 113, 0.12)';
+      savingsBadge.style.color = 'var(--success)';
+      savingsBadge.textContent = `Saved: ${savingsValStr}`;
+      
+      const tenureBadge = document.createElement('div');
+      tenureBadge.className = 'savings-badge';
+      tenureBadge.style.marginLeft = '6px';
+      tenureBadge.style.background = 'rgba(47, 111, 237, 0.12)';
+      tenureBadge.style.color = 'var(--accent)';
+      tenureBadge.textContent = `Tenure Cut: ${sum.tenureReducedMonths} months`;
+
+      badgeContainer.appendChild(savingsBadge);
+      badgeContainer.appendChild(tenureBadge);
+    } else {
+      costLabelEl.textContent = 'Effective Cost of Loan';
+      const effCost = sum.principal + sum.originalTotalInterest + sum.processingFee;
+      costValueEl.textContent = formatValueCurrency(effCost);
+      costValueEl.style.color = 'var(--text-primary)';
+    }
+  }
+
+  // Render Pie Chart
+  function renderPieChart() {
+    const sum = calculatedData.summary;
+    const principal = sum.principal;
+    const interest = calculatedData.hasPrepayment ? sum.prepayTotalInterest : sum.originalTotalInterest;
+    const fee = sum.processingFee;
+    const grandTotal = principal + interest + fee;
+
+    const principalPct = ((principal / grandTotal) * 100).toFixed(1);
+    const interestPct = ((interest / grandTotal) * 100).toFixed(1);
+    const feePct = ((fee / grandTotal) * 100).toFixed(1);
+
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const textLabelColor = isDark ? '#c0ccda' : '#526173';
+
+    if (pieChartInstance) {
+      pieChartInstance.destroy();
+    }
+
+    const ctx = document.getElementById('chart-pie').getContext('2d');
+    pieChartInstance = new Chart(ctx, {
+      type: 'pie',
+      data: {
+        labels: [`Principal (${principalPct}%)`, `Interest (${interestPct}%)`, `Fee (${feePct}%)`],
+        datasets: [{
+          data: [principal, interest, fee],
+          backgroundColor: ['#2f6fed', '#b44545', '#e2a03f'],
+          borderColor: isDark ? '#0b1627' : '#ffffff',
+          borderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              color: textLabelColor,
+              font: { family: 'Manrope', size: 10, weight: '600' },
+              padding: 10
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                return ' ' + context.label.split(' ')[0] + ': ' + formatValueCurrency(context.raw);
+              }
+            }
+          }
+        }
+      }
+    });
+
+    // Render Progress Bars & Summary Cards
+    const detailsContainer = document.getElementById('breakdown-details-container');
+    if (detailsContainer) {
+      detailsContainer.innerHTML = `
+        <div class="breakdown-summary-list" style="display:flex; flex-direction:column; gap:12px;">
+          <!-- Principal -->
+          <div>
+            <div style="display:flex; justify-content:space-between; font-size:13px; font-weight:600; margin-bottom:4px;">
+              <span style="color:var(--text-secondary); display:flex; align-items:center; gap:6px;">
+                <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#2f6fed;"></span>
+                Principal Amount
+              </span>
+              <span>₹${Math.round(principal).toLocaleString('en-IN')} (${principalPct}%)</span>
+            </div>
+            <div style="background:var(--border); height:6px; border-radius:3px; overflow:hidden;">
+              <div style="background:#2f6fed; width:${principalPct}%; height:100%;"></div>
+            </div>
+          </div>
+          
+          <!-- Interest -->
+          <div>
+            <div style="display:flex; justify-content:space-between; font-size:13px; font-weight:600; margin-bottom:4px;">
+              <span style="color:var(--text-secondary); display:flex; align-items:center; gap:6px;">
+                <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#b44545;"></span>
+                Interest Amount
+              </span>
+              <span>₹${Math.round(interest).toLocaleString('en-IN')} (${interestPct}%)</span>
+            </div>
+            <div style="background:var(--border); height:6px; border-radius:3px; overflow:hidden;">
+              <div style="background:#b44545; width:${interestPct}%; height:100%;"></div>
+            </div>
+          </div>
+          
+          <!-- Processing Fee -->
+          <div>
+            <div style="display:flex; justify-content:space-between; font-size:13px; font-weight:600; margin-bottom:4px;">
+              <span style="color:var(--text-secondary); display:flex; align-items:center; gap:6px;">
+                <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#e2a03f;"></span>
+                Processing Fee
+              </span>
+              <span>₹${Math.round(fee).toLocaleString('en-IN')} (${feePct}%)</span>
+            </div>
+            <div style="background:var(--border); height:6px; border-radius:3px; overflow:hidden;">
+              <div style="background:#e2a03f; width:${feePct}%; height:100%;"></div>
+            </div>
+          </div>
+          
+          <!-- Total Cost -->
+          <div style="border-top:1px solid var(--border); padding-top:10px; display:flex; justify-content:space-between; font-size:14px; font-weight:700;">
+            <span>Total Cost of Loan</span>
+            <span>₹${Math.round(grandTotal).toLocaleString('en-IN')}</span>
+          </div>
+        </div>
+      `;
+    }
+  }
+
+  // Render Amortization Trend Chart
+  function renderAmortizationChart() {
+    const schedule = calculatedData.hasPrepayment ? calculatedData.prepaySchedule : calculatedData.originalSchedule;
+    
+    let labels = [];
+    let balanceData = [];
+    let cumulativeInterestData = [];
+    let cumulativePrincipalData = [];
+
+    let cumInterest = 0;
+    let cumPrincipal = 0;
+
+    if (chartGrouping === 'monthly') {
+      // Monthly Plot
+      schedule.forEach((s) => {
+        labels.push(`Month ${s.emiNumber}`);
+        balanceData.push(s.outstandingBalance);
+        cumInterest += s.interestComponent;
+        cumPrincipal += s.principalComponent + (s.prepayment || 0);
+        cumulativeInterestData.push(cumInterest);
+        cumulativePrincipalData.push(cumPrincipal);
+      });
+    } else {
+      // Yearly Plot
+      let yearsCount = Math.ceil(schedule.length / 12);
+      for (let i = 0; i < yearsCount; i++) {
+        let startIdx = i * 12;
+        let endIdx = Math.min((i + 1) * 12 - 1, schedule.length - 1);
+        let endRecord = schedule[endIdx];
+
+        labels.push(`Year ${i + 1}`);
+        balanceData.push(endRecord.outstandingBalance);
+
+        // Sum components for this year
+        for (let j = startIdx; j <= endIdx; j++) {
+          cumInterest += schedule[j].interestComponent;
+          cumPrincipal += schedule[j].principalComponent + (schedule[j].prepayment || 0);
+        }
+        cumulativeInterestData.push(cumInterest);
+        cumulativePrincipalData.push(cumPrincipal);
+      }
+    }
+
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const textLabelColor = isDark ? '#c0ccda' : '#526173';
+    const gridColor = isDark ? 'rgba(151, 176, 210, 0.12)' : '#e4ebf4';
+
+    if (lineChartInstance) {
+      lineChartInstance.destroy();
+    }
+
+    const ctx = document.getElementById('chart-amortization').getContext('2d');
+    lineChartInstance = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: 'Outstanding Balance',
+            data: balanceData,
+            borderColor: '#2f6fed',
+            backgroundColor: 'rgba(47, 111, 237, 0.08)',
+            fill: true,
+            tension: 0.25,
+            borderWidth: 2,
+            pointRadius: labels.length > 36 ? 0 : 2
+          },
+          {
+            label: 'Total Principal Paid',
+            data: cumulativePrincipalData,
+            borderColor: '#0f8b71',
+            backgroundColor: 'transparent',
+            fill: false,
+            tension: 0.25,
+            borderWidth: 2,
+            pointRadius: labels.length > 36 ? 0 : 2
+          },
+          {
+            label: 'Total Interest Paid',
+            data: cumulativeInterestData,
+            borderColor: '#b44545',
+            backgroundColor: 'transparent',
+            fill: false,
+            tension: 0.25,
+            borderWidth: 2,
+            pointRadius: labels.length > 36 ? 0 : 2
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+          mode: 'index',
+          intersect: false
+        },
+        plugins: {
+          legend: {
+            position: 'top',
+            labels: {
+              color: textLabelColor,
+              font: { family: 'Manrope', size: 11, weight: '600' }
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                return ' ' + context.dataset.label + ': ' + formatValueCurrency(context.raw);
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: { color: gridColor },
+            ticks: {
+              color: textLabelColor,
+              font: { family: 'Manrope', size: 10 },
+              maxTicksLimit: 12
+            }
+          },
+          y: {
+            grid: { color: gridColor },
+            ticks: {
+              color: textLabelColor,
+              font: { family: 'Manrope', size: 10 },
+              callback: function(value) {
+                return '₹' + (value >= 100000 ? (value / 100000).toFixed(1) + 'L' : (value / 1000).toFixed(0) + 'k');
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  // Dynamic Theme Redraw hook
+  function updateChartThemes() {
+    if (calculatedData.originalSchedule.length > 0) {
+      renderPieChart();
+      renderAmortizationChart();
+    }
+  }
+
+  const themeObserver = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      if (mutation.attributeName === 'data-theme') {
+        updateChartThemes();
+      }
+    });
+  });
+  themeObserver.observe(document.documentElement, { attributes: true });
+
+  // Reset all parameters
+  function resetCalculator() {
+    principalInput.value = '';
+    document.getElementById('input-rate').value = '';
+    document.getElementById('input-tenure').value = '';
+    document.getElementById('input-fee').value = '';
+    prepaymentInput.value = '';
+    clearErrors();
+
+    calculatedData = {
+      originalSchedule: [],
+      prepaySchedule: [],
+      hasPrepayment: false,
+      summary: {}
+    };
+
+    document.getElementById('res-emi').textContent = '₹0';
+    document.getElementById('res-interest').textContent = '₹0';
+    document.getElementById('res-total').textContent = '₹0';
+    document.getElementById('res-fee').textContent = '₹0';
+    document.getElementById('res-cost').textContent = '₹0';
+    document.getElementById('res-cost').style.color = 'var(--text-primary)';
+    document.getElementById('savings-badge-container').innerHTML = '';
+
+    if (pieChartInstance) pieChartInstance.destroy();
+    if (lineChartInstance) lineChartInstance.destroy();
+    pieChartInstance = null;
+    lineChartInstance = null;
+
+    const detailsContainer = document.getElementById('breakdown-details-container');
+    if (detailsContainer) {
+      detailsContainer.innerHTML = `
+        <div style="text-align:center; color:var(--text-muted); font-size:13px; padding:20px 0;">
+          Enter values above and click Calculate to view breakdown.
+        </div>
+      `;
+    }
+
+    document.getElementById('schedule-tbody').innerHTML = `
+      <tr>
+        <td colspan="7" class="text-center text-muted" style="padding:40px 0;">Enter values above and click Calculate to view schedule.</td>
+      </tr>
+    `;
+    document.getElementById('pagination-wrapper').style.display = 'none';
+  }
+
+  // Repayment Schedule Table rendering, searching, sorting and pagination
+  function handleSearch() {
+    searchQuery = document.getElementById('table-search').value.trim().toLowerCase();
+    currentPage = 1;
+    renderRepaymentTable();
+  }
+
+  function handleLimitChange() {
+    const limit = document.getElementById('table-limit').value;
+    if (limit === 'all') {
+      rowsPerPage = 99999;
+    } else {
+      rowsPerPage = parseInt(limit);
+    }
+    currentPage = 1;
+    renderRepaymentTable();
+  }
+
+  function handleSort(column) {
+    if (sortColumn === column) {
+      sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+    } else {
+      sortColumn = column;
+      sortOrder = 'asc';
+    }
+
+    // Toggle styling classes on headers
+    document.querySelectorAll('th.sortable').forEach(th => {
+      th.classList.remove('asc', 'desc');
+    });
+    
+    // Find target index for click sorting headers
+    const headerMapping = {
+      emiNumber: 0,
+      paymentDate: 1,
+      emiAmount: 2,
+      principalComponent: 3,
+      interestComponent: 4,
+      prepayment: 5,
+      outstandingBalance: 6
+    };
+    
+    const ths = document.querySelectorAll('th.sortable');
+    ths.forEach(th => {
+      const onclickAttr = th.getAttribute('onclick');
+      if (onclickAttr && onclickAttr.includes(column)) {
+        th.classList.add(sortOrder);
+      }
+    });
+
+    renderRepaymentTable();
+  }
+
+  function renderRepaymentTable() {
+    const schedule = calculatedData.hasPrepayment ? calculatedData.prepaySchedule : calculatedData.originalSchedule;
+    if (!schedule || schedule.length === 0) return;
+
+    // Filter list
+    let filtered = [...schedule];
+    if (searchQuery) {
+      filtered = filtered.filter(row => {
+        return row.emiNumber.toString().includes(searchQuery) ||
+               row.paymentDate.toLowerCase().includes(searchQuery) ||
+               Math.round(row.emiAmount).toString().includes(searchQuery) ||
+               Math.round(row.outstandingBalance).toString().includes(searchQuery);
+      });
+    }
+
+    // Sort list
+    filtered.sort((a, b) => {
+      let valA = a[sortColumn];
+      let valB = b[sortColumn];
+
+      if (sortColumn === 'paymentDate') {
+        // Date parse helper for month names
+        valA = new Date(valA);
+        valB = new Date(valB);
+      }
+
+      if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
+      if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    // Pagination
+    const totalRows = filtered.length;
+    const totalPages = Math.ceil(totalRows / rowsPerPage);
+    if (currentPage > totalPages && totalPages > 0) {
+      currentPage = totalPages;
+    }
+
+    const startIdx = (currentPage - 1) * rowsPerPage;
+    const endIdx = Math.min(startIdx + rowsPerPage, totalRows);
+    const paginated = filtered.slice(startIdx, endIdx);
+
+    const tbody = document.getElementById('schedule-tbody');
+    tbody.innerHTML = '';
+
+    if (paginated.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted" style="padding:20px 0;">No matching entries found.</td></tr>`;
+      document.getElementById('pagination-wrapper').style.display = 'none';
+      return;
+    }
+
+    paginated.forEach(row => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>Month ${row.emiNumber}</td>
+        <td>${row.paymentDate}</td>
+        <td>${formatValueCurrency(row.emiAmount)}</td>
+        <td>${formatValueCurrency(row.principalComponent)}</td>
+        <td>${formatValueCurrency(row.interestComponent)}</td>
+        <td>${row.prepayment > 0 ? formatValueCurrency(row.prepayment) : '—'}</td>
+        <td style="font-weight:600;">${formatValueCurrency(row.outstandingBalance)}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    // Update Pagination UI
+    const paginationWrapper = document.getElementById('pagination-wrapper');
+    if (totalRows <= rowsPerPage && rowsPerPage === 99999) {
+      paginationWrapper.style.display = 'none';
+    } else {
+      paginationWrapper.style.display = 'flex';
+      document.getElementById('pagination-info').textContent = `Showing ${startIdx + 1} to ${endIdx} of ${totalRows} installment periods`;
+      
+      const btnsContainer = document.getElementById('pagination-btns');
+      btnsContainer.innerHTML = '';
+
+      // Prev Button
+      const prevBtn = document.createElement('button');
+      prevBtn.className = 'pagination-btn';
+      prevBtn.textContent = 'Previous';
+      prevBtn.disabled = currentPage === 1;
+      prevBtn.onclick = () => { currentPage--; renderRepaymentTable(); };
+      btnsContainer.appendChild(prevBtn);
+
+      // Page numbers (smart pagination: show current, first, last, and neighbours)
+      const maxPagesToShow = 5;
+      let startPage = Math.max(1, currentPage - 2);
+      let endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
+      
+      if (endPage - startPage + 1 < maxPagesToShow) {
+        startPage = Math.max(1, endPage - maxPagesToShow + 1);
+      }
+
+      for (let p = startPage; p <= endPage; p++) {
+        const btn = document.createElement('button');
+        btn.className = `pagination-btn ${p === currentPage ? 'active' : ''}`;
+        btn.textContent = p;
+        btn.onclick = () => { currentPage = p; renderRepaymentTable(); };
+        btnsContainer.appendChild(btn);
+      }
+
+      // Next Button
+      const nextBtn = document.createElement('button');
+      nextBtn.className = 'pagination-btn';
+      nextBtn.textContent = 'Next';
+      nextBtn.disabled = currentPage === totalPages;
+      nextBtn.onclick = () => { currentPage++; renderRepaymentTable(); };
+      btnsContainer.appendChild(nextBtn);
+    }
+  }
+
+  // Exports capabilities
+
+  // Excel Export
+  function exportExcel() {
+    const schedule = calculatedData.hasPrepayment ? calculatedData.prepaySchedule : calculatedData.originalSchedule;
+    if (!schedule || schedule.length === 0) {
+      alert('Please perform calculations first before exporting.');
+      return;
+    }
+
+    const wsData = [
+      ["EMI Number", "Payment Date", "EMI Amount (INR)", "Principal component (INR)", "Interest component (INR)", "Prepayment (INR)", "Outstanding Balance (INR)"]
+    ];
+
+    schedule.forEach(r => {
+      wsData.push([
+        r.emiNumber,
+        r.paymentDate,
+        Math.round(r.emiAmount),
+        Math.round(r.principalComponent),
+        Math.round(r.interestComponent),
+        Math.round(r.prepayment),
+        Math.round(r.outstandingBalance)
+      ]);
+    });
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    
+    // Set column widths
+    const wscols = [
+      {wch: 12},
+      {wch: 15},
+      {wch: 18},
+      {wch: 25},
+      {wch: 22},
+      {wch: 18},
+      {wch: 25}
+    ];
+    ws['!cols'] = wscols;
+
+    XLSX.utils.book_append_sheet(wb, ws, "Repayment Schedule");
+    XLSX.writeFile(wb, `CLN_EMI_Schedule_${Math.round(calculatedData.summary.principal)}.xlsx`);
+  }
+
+  // CSV Export
+  function exportCSV() {
+    const schedule = calculatedData.hasPrepayment ? calculatedData.prepaySchedule : calculatedData.originalSchedule;
+    if (!schedule || schedule.length === 0) {
+      alert('Please perform calculations first.');
+      return;
+    }
+
+    let csvContent = "data:text/csv;charset=utf-8,";
+    csvContent += "EMI Number,Payment Date,EMI Amount (INR),Principal Paid (INR),Interest Paid (INR),Prepayment (INR),Outstanding Balance (INR)\n";
+
+    schedule.forEach(r => {
+      csvContent += `${r.emiNumber},${r.paymentDate},${Math.round(r.emiAmount)},${Math.round(r.principalComponent)},${Math.round(r.interestComponent)},${Math.round(r.prepayment)},${Math.round(r.outstandingBalance)}\n`;
+    });
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `CLN_EMI_Schedule_${Math.round(calculatedData.summary.principal)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  // PDF Report Export
+  function exportPDF() {
+    const { jsPDF } = window.jspdf;
+    if (!jsPDF) {
+      alert('PDF library not loaded yet. Please wait a second.');
+      return;
+    }
+
+    const schedule = calculatedData.hasPrepayment ? calculatedData.prepaySchedule : calculatedData.originalSchedule;
+    if (!schedule || schedule.length === 0) {
+      alert('Please perform calculations first.');
+      return;
+    }
+
+    const sum = calculatedData.summary;
+    const doc = new jsPDF('p', 'pt', 'a4');
+
+    // Title
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(22);
+    doc.setTextColor(15, 39, 71); // Accent primary
+    doc.text("CLN Lending Suite", 40, 50);
+
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(82, 97, 115);
+    doc.text("EMI Amortization Summary Report", 40, 72);
+
+    // Date
+    doc.setFontSize(10);
+    doc.setTextColor(123, 136, 151);
+    doc.text(`Generated on: ${new Date().toLocaleDateString('en-IN')}`, 450, 50);
+
+    // Draw horizontal line
+    doc.setDrawColor(217, 227, 239);
+    doc.setLineWidth(1);
+    doc.line(40, 85, 550, 85);
+
+    // Summary section
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.setTextColor(16, 32, 51);
+    doc.text("Loan Details & Summary", 40, 110);
+
+    // Left Column details
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.text(`Principal Amount:  ₹${Math.round(sum.principal).toLocaleString('en-IN')}`, 40, 135);
+    doc.text(`Annual Interest Rate:  ${sum.rate}% p.a.`, 40, 155);
+    doc.text(`Loan Tenure:  ${sum.tenureMonths} Months (${(sum.tenureMonths / 12).toFixed(1)} Years)`, 40, 175);
+    doc.text(`Processing Fee:  ₹${Math.round(sum.processingFee).toLocaleString('en-IN')}`, 40, 195);
+
+    // Right Column details
+    doc.text(`Monthly EMI:  ₹${Math.round(sum.originalEMI).toLocaleString('en-IN')}`, 320, 135);
+    doc.text(`Interest Payable:  ₹${Math.round(calculatedData.hasPrepayment ? sum.prepayTotalInterest : sum.originalTotalInterest).toLocaleString('en-IN')}`, 320, 155);
+    doc.text(`Total Amount Payable:  ₹${Math.round(calculatedData.hasPrepayment ? sum.prepayTotalAmount : sum.originalTotalAmount).toLocaleString('en-IN')}`, 320, 175);
+    
+    if (calculatedData.hasPrepayment) {
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(15, 139, 113); // Success color
+      doc.text(`Interest Saved:  ₹${Math.round(sum.interestSaved).toLocaleString('en-IN')}`, 320, 195);
+      doc.setTextColor(15, 39, 71);
+      doc.text(`Revised Tenure:  ${schedule.length} Months (Reduced by ${sum.tenureReducedMonths}m)`, 320, 215);
+      doc.setFont("helvetica", "normal");
+    } else {
+      const effCost = sum.principal + sum.originalTotalInterest + sum.processingFee;
+      doc.text(`Effective Cost of Loan:  ₹${Math.round(effCost).toLocaleString('en-IN')}`, 320, 195);
+    }
+
+    // Add Pie Chart screenshot if canvas renders
+    const pieCanvas = document.getElementById('chart-pie');
+    if (pieCanvas) {
+      try {
+        const imgData = pieCanvas.toDataURL('image/jpeg', 0.85);
+        doc.addImage(imgData, 'JPEG', 40, 235, 140, 140);
+      } catch (err) {
+        // ignore image error
+      }
+    }
+
+    // Draw amortization table using AutoTable
+    const tableData = schedule.map(r => [
+      `Month ${r.emiNumber}`,
+      r.paymentDate,
+      `₹${Math.round(r.emiAmount).toLocaleString('en-IN')}`,
+      `₹${Math.round(r.principalComponent).toLocaleString('en-IN')}`,
+      `₹${Math.round(r.interestComponent).toLocaleString('en-IN')}`,
+      r.prepayment > 0 ? `₹${Math.round(r.prepayment).toLocaleString('en-IN')}` : '—',
+      `₹${Math.round(r.outstandingBalance).toLocaleString('en-IN')}`
+    ]);
+
+    doc.autoTable({
+      head: [["EMI #", "Payment Date", "EMI Amount", "Principal Part", "Interest Part", "Prepayment", "Balance"]],
+      body: tableData,
+      startY: 395,
+      theme: 'striped',
+      headStyles: {
+        fillColor: [15, 39, 71],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        fontSize: 9
+      },
+      styles: {
+        fontSize: 8.5,
+        cellPadding: 6,
+        font: 'helvetica'
+      },
+      columnStyles: {
+        0: { cellWidth: 50 },
+        1: { cellWidth: 70 },
+        2: { cellWidth: 75 },
+        3: { cellWidth: 85 },
+        4: { cellWidth: 85 },
+        5: { cellWidth: 70 },
+        6: { cellWidth: 95 }
+      },
+      margin: { left: 40, right: 40 }
+    });
+
+    doc.save(`CLN_EMI_Report_${Math.round(sum.principal)}.pdf`);
+  }
+
+  // ── Compare Loans Tab Javascript ──────────────────────────────────────────
+  let activeTab = 'single';
+  let comparedData = null;
+
+  function switchTab(tab) {
+    activeTab = tab;
+    document.getElementById('tab-btn-single').classList.toggle('active', tab === 'single');
+    document.getElementById('tab-btn-compare').classList.toggle('active', tab === 'compare');
+    document.getElementById('tab-content-single').style.display = tab === 'single' ? 'block' : 'none';
+    document.getElementById('tab-content-compare').style.display = tab === 'compare' ? 'block' : 'none';
+  }
+
+  const compareP1 = document.getElementById('compare-principal-1');
+  const compareP2 = document.getElementById('compare-principal-2');
+  document.querySelectorAll('.compare-principal-input').forEach(inp => {
+    inp.addEventListener('input', () => formatInputValue(inp));
+  });
+
+  function resetCompare() {
+    document.getElementById('compare-form').reset();
+    document.getElementById('compare-results-section').style.display = 'none';
+    comparedData = null;
+    document.querySelectorAll('#tab-content-compare .error-msg').forEach(el => {
+      el.textContent = '';
+      el.style.display = 'none';
+    });
+  }
+
+  function calculateCompare() {
+    document.querySelectorAll('#tab-content-compare .error-msg').forEach(el => {
+      el.textContent = '';
+      el.style.display = 'none';
+    });
+
+    const p1 = parseFloat(compareP1.value.replace(/,/g, ''));
+    const r1 = parseFloat(document.getElementById('compare-rate-1').value);
+    const t1 = parseFloat(document.getElementById('compare-tenure-1').value);
+    const b1 = document.getElementById('compare-bank-1').value;
+
+    const p2 = parseFloat(compareP2.value.replace(/,/g, ''));
+    const r2 = parseFloat(document.getElementById('compare-rate-2').value);
+    const t2 = parseFloat(document.getElementById('compare-tenure-2').value);
+    const b2 = document.getElementById('compare-bank-2').value;
+
+    let hasError = false;
+    if (isNaN(p1) || p1 <= 0) { showCompareError('err-compare-principal-1', 'Enter a valid loan amount.'); hasError = true; }
+    if (isNaN(r1) || r1 <= 0) { showCompareError('err-compare-rate-1', 'Enter a valid interest rate.'); hasError = true; }
+    if (isNaN(t1) || t1 <= 0) { showCompareError('err-compare-tenure-1', 'Enter a valid tenure in months.'); hasError = true; }
+    if (isNaN(p2) || p2 <= 0) { showCompareError('err-compare-principal-2', 'Enter a valid loan amount.'); hasError = true; }
+    if (isNaN(r2) || r2 <= 0) { showCompareError('err-compare-rate-2', 'Enter a valid interest rate.'); hasError = true; }
+    if (isNaN(t2) || t2 <= 0) { showCompareError('err-compare-tenure-2', 'Enter a valid tenure in months.'); hasError = true; }
+    if (hasError) return;
+
+    // EMI Formula: P × R × (1+R)^N / ((1+R)^N - 1)
+    const mR1 = r1 / 12 / 100;
+    const emi1 = mR1 > 0 ? (p1 * mR1 * Math.pow(1 + mR1, t1)) / (Math.pow(1 + mR1, t1) - 1) : p1 / t1;
+    const total1 = emi1 * t1;
+    const interest1 = total1 - p1;
+
+    const mR2 = r2 / 12 / 100;
+    const emi2 = mR2 > 0 ? (p2 * mR2 * Math.pow(1 + mR2, t2)) / (Math.pow(1 + mR2, t2) - 1) : p2 / t2;
+    const total2 = emi2 * t2;
+    const interest2 = total2 - p2;
+
+    const betterOption = total2 < total1 ? 2 : 1;
+    const savings = Math.abs(total1 - total2);
+    const emiDiff = Math.abs(emi1 - emi2);
+    const interestDiff = Math.abs(interest1 - interest2);
+
+    comparedData = {
+      opt1: { p: p1, r: r1, t: t1, b: b1, emi: emi1, interest: interest1, total: total1 },
+      opt2: { p: p2, r: r2, t: t2, b: b2, emi: emi2, interest: interest2, total: total2 },
+      betterOption, savings, emiDiff, interestDiff
+    };
+
+    renderCompareResults();
+  }
+
+  function showCompareError(id, msg) {
+    const el = document.getElementById(id);
+    if (el) { el.textContent = msg; el.style.display = 'block'; }
+  }
+
+  function renderCompareResults() {
+    const { opt1, opt2, betterOption, savings, emiDiff, interestDiff } = comparedData;
+
+    document.getElementById('compare-results-section').style.display = 'block';
+
+    document.getElementById('comp-savings-val').textContent = `₹${Math.round(savings).toLocaleString('en-IN')}`;
+    document.getElementById('comp-emi-diff-val').textContent = `₹${Math.round(emiDiff).toLocaleString('en-IN')}`;
+    document.getElementById('comp-interest-diff-val').textContent = `₹${Math.round(interestDiff).toLocaleString('en-IN')}`;
+
+    const betterOpt = betterOption === 1 ? opt1 : opt2;
+    const worseOpt  = betterOption === 1 ? opt2 : opt1;
+    const worseNum  = betterOption === 1 ? 2 : 1;
+
+    const recCard = document.getElementById('compare-recommendation-card');
+    recCard.style.background = 'rgba(15,139,113,0.12)';
+    recCard.style.border = '1.5px solid var(--success)';
+    recCard.style.borderRadius = '10px';
+
+    let reasonsHtml = '';
+    if (betterOpt.emi < worseOpt.emi)
+      reasonsHtml += `<li>📉 Lower Monthly EMI (saves ₹${Math.round(worseOpt.emi - betterOpt.emi).toLocaleString('en-IN')}/month)</li>`;
+    if (betterOpt.r < worseOpt.r)
+      reasonsHtml += `<li>🎯 Better Interest Rate (${betterOpt.r}% vs ${worseOpt.r}%)</li>`;
+    if (betterOpt.interest < worseOpt.interest)
+      reasonsHtml += `<li>📈 Lower Total Interest (saves ₹${Math.round(interestDiff).toLocaleString('en-IN')})</li>`;
+    if (betterOpt.total < worseOpt.total)
+      reasonsHtml += `<li>💰 Lower Total Repayment (saves ₹${Math.round(savings).toLocaleString('en-IN')} overall)</li>`;
+    if (!reasonsHtml) reasonsHtml = '<li>Both options have identical financial parameters.</li>';
+
+    recCard.innerHTML = `
+      <div style="font-size:24px;color:var(--success);margin-top:2px;">✅</div>
+      <div>
+        <h4 style="color:var(--success);margin:0 0 8px 0;font-size:16px;">Loan Option ${betterOption} is better!</h4>
+        <p style="margin:0 0 10px 0;font-size:14px;color:var(--text-secondary);">
+          Choosing <strong>Option ${betterOption}</strong> (${betterOpt.b || 'Option ' + betterOption}) saves you <strong>₹${Math.round(savings).toLocaleString('en-IN')}</strong> in total repayment compared to Option ${worseNum}.
+        </p>
+        <ul style="margin:0;padding-left:20px;font-size:13px;color:var(--text-secondary);line-height:1.6;">${reasonsHtml}</ul>
+      </div>`;
+
+    document.getElementById('table-header-opt1').textContent = `Option 1 ${opt1.b ? '(' + opt1.b + ')' : ''}`;
+    document.getElementById('table-header-opt2').textContent = `Option 2 ${opt2.b ? '(' + opt2.b + ')' : ''}`;
+
+    const hClass = (v1, v2, lowerBetter = true) => {
+      if (v1 === v2) return 'comp-neutral-val';
+      return (lowerBetter ? v1 < v2 : v1 > v2) ? 'comp-better-val' : 'comp-worse-val';
+    };
+    const fmtC = (v, cls) => `<span class="${cls}">₹${Math.round(v).toLocaleString('en-IN')}</span>`;
+    const fmtDiff = v => `₹${Math.round(v).toLocaleString('en-IN')}`;
+
+    document.getElementById('compare-table-tbody').innerHTML = `
+      <tr>
+        <td style="padding:12px;font-weight:500;">Principal Loan Amount</td>
+        <td style="padding:12px;">${fmtC(opt1.p, hClass(opt1.p, opt2.p))}</td>
+        <td style="padding:12px;">${fmtC(opt2.p, hClass(opt2.p, opt1.p))}</td>
+        <td style="padding:12px;font-weight:600;">${fmtDiff(Math.abs(opt1.p - opt2.p))}</td>
+      </tr>
+      <tr>
+        <td style="padding:12px;font-weight:500;">Interest Rate (% p.a.)</td>
+        <td style="padding:12px;"><span class="${hClass(opt1.r, opt2.r)}">${opt1.r}% p.a.</span></td>
+        <td style="padding:12px;"><span class="${hClass(opt2.r, opt1.r)}">${opt2.r}% p.a.</span></td>
+        <td style="padding:12px;font-weight:600;">${Math.abs(opt1.r - opt2.r).toFixed(2)}%</td>
+      </tr>
+      <tr>
+        <td style="padding:12px;font-weight:500;">Loan Tenure (Months)</td>
+        <td style="padding:12px;"><span class="${hClass(opt1.t, opt2.t)}">${opt1.t} Months</span></td>
+        <td style="padding:12px;"><span class="${hClass(opt2.t, opt1.t)}">${opt2.t} Months</span></td>
+        <td style="padding:12px;font-weight:600;">${Math.abs(opt1.t - opt2.t)} Months</td>
+      </tr>
+      <tr style="border-top:1.5px solid var(--border);">
+        <td style="padding:12px;font-weight:700;color:var(--accent);">Monthly EMI</td>
+        <td style="padding:12px;">${fmtC(opt1.emi, hClass(opt1.emi, opt2.emi))}</td>
+        <td style="padding:12px;">${fmtC(opt2.emi, hClass(opt2.emi, opt1.emi))}</td>
+        <td style="padding:12px;font-weight:700;color:var(--accent);">${fmtDiff(emiDiff)}</td>
+      </tr>
+      <tr>
+        <td style="padding:12px;font-weight:600;color:var(--text-secondary);">Total Interest Payable</td>
+        <td style="padding:12px;">${fmtC(opt1.interest, hClass(opt1.interest, opt2.interest))}</td>
+        <td style="padding:12px;">${fmtC(opt2.interest, hClass(opt2.interest, opt1.interest))}</td>
+        <td style="padding:12px;font-weight:600;color:var(--warning);">${fmtDiff(interestDiff)}</td>
+      </tr>
+      <tr style="background:var(--bg-secondary);border-top:1px solid var(--border);">
+        <td style="padding:12px;font-weight:700;">Total Repayment Amount</td>
+        <td style="padding:12px;">${fmtC(opt1.total, hClass(opt1.total, opt2.total))}</td>
+        <td style="padding:12px;">${fmtC(opt2.total, hClass(opt2.total, opt1.total))}</td>
+        <td style="padding:12px;font-weight:700;color:var(--success);">${fmtDiff(savings)}</td>
+      </tr>
+      `;
+  }
+
+  function shareCompare() {
+    if (!comparedData) return;
+    const { opt1, opt2, betterOption, savings } = comparedData;
+    const text = `CLN Loan Comparison Summary:\n` +
+      `Option 1: ₹${Math.round(opt1.p).toLocaleString('en-IN')} @ ${opt1.r}% for ${opt1.t} months (${opt1.b || 'N/A'})\n` +
+      `Option 2: ₹${Math.round(opt2.p).toLocaleString('en-IN')} @ ${opt2.r}% for ${opt2.t} months (${opt2.b || 'N/A'})\n` +
+      `👉 Option ${betterOption} is financially better — saves ₹${Math.round(savings).toLocaleString('en-IN')} overall!`;
+    navigator.clipboard.writeText(text)
+      .then(() => alert('Comparison summary copied to clipboard!'))
+      .catch(() => alert('Summary:\n\n' + text));
+  }
+
+  function exportCompareExcel() {
+    if (!comparedData) return;
+    const { opt1, opt2, betterOption, savings, emiDiff, interestDiff } = comparedData;
+    const wsData = [
+      ['CLN Lending Suite — Loan Comparison Report'],
+      [],
+      ['Parameters', `Option 1 (${opt1.b || 'N/A'})`, `Option 2 (${opt2.b || 'N/A'})`, 'Difference'],
+      ['Principal Loan Amount', Math.round(opt1.p), Math.round(opt2.p), Math.round(Math.abs(opt1.p - opt2.p))],
+      ['Interest Rate (% p.a.)', `${opt1.r}%`, `${opt2.r}%`, `${Math.abs(opt1.r - opt2.r).toFixed(2)}%`],
+      ['Tenure (Months)', opt1.t, opt2.t, Math.abs(opt1.t - opt2.t)],
+      ['Monthly EMI', Math.round(opt1.emi), Math.round(opt2.emi), Math.round(emiDiff)],
+      ['Total Interest Payable', Math.round(opt1.interest), Math.round(opt2.interest), Math.round(interestDiff)],
+      ['Total Repayment Cost', Math.round(opt1.total), Math.round(opt2.total), Math.round(savings)],
+      [],
+      [`Recommendation: Option ${betterOption} is recommended — saves ₹${Math.round(savings).toLocaleString('en-IN')} overall.`]
+    ];
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws['!cols'] = [{wch:28},{wch:20},{wch:20},{wch:15}];
+    XLSX.utils.book_append_sheet(wb, ws, 'Comparison Report');
+    XLSX.writeFile(wb, `CLN_Loan_Comparison_${Math.round(opt1.p)}.xlsx`);
+  }
+
+  function exportComparePDF() {
+    const { jsPDF } = window.jspdf;
+    if (!jsPDF) { alert('PDF library not loaded yet.'); return; }
+    if (!comparedData) return;
+    const { opt1, opt2, betterOption, savings, emiDiff, interestDiff } = comparedData;
+    const doc = new jsPDF('p', 'pt', 'a4');
+
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(22); doc.setTextColor(15, 39, 71);
+    doc.text('CLN Lending Suite', 40, 50);
+    doc.setFontSize(14); doc.setFont('helvetica', 'normal'); doc.setTextColor(82, 97, 115);
+    doc.text('Loan Comparison Report', 40, 72);
+    doc.setFontSize(10); doc.setTextColor(123, 136, 151);
+    doc.text(`Generated: ${new Date().toLocaleDateString('en-IN')}`, 430, 50);
+    doc.setDrawColor(217, 227, 239); doc.line(40, 85, 550, 85);
+
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(15, 139, 113);
+    doc.text(`✅ Recommendation: Loan Option ${betterOption} is financially better!`, 40, 110);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(82, 97, 115);
+    doc.text(`Choosing Option ${betterOption} saves ₹${Math.round(savings).toLocaleString('en-IN')} overall vs Option ${betterOption === 1 ? 2 : 1}.`, 40, 130);
+
+    doc.autoTable({
+      head: [['Details', `Option 1 (${opt1.b||'N/A'})`, `Option 2 (${opt2.b||'N/A'})`, 'Difference']],
+      body: [
+        ['Principal Amount', `₹${Math.round(opt1.p).toLocaleString('en-IN')}`, `₹${Math.round(opt2.p).toLocaleString('en-IN')}`, `₹${Math.round(Math.abs(opt1.p-opt2.p)).toLocaleString('en-IN')}`],
+        ['Interest Rate', `${opt1.r}% p.a.`, `${opt2.r}% p.a.`, `${Math.abs(opt1.r-opt2.r).toFixed(2)}%`],
+        ['Tenure', `${opt1.t} Months`, `${opt2.t} Months`, `${Math.abs(opt1.t-opt2.t)} Months`],
+        ['Monthly EMI', `₹${Math.round(opt1.emi).toLocaleString('en-IN')}`, `₹${Math.round(opt2.emi).toLocaleString('en-IN')}`, `₹${Math.round(emiDiff).toLocaleString('en-IN')}`],
+        ['Total Interest', `₹${Math.round(opt1.interest).toLocaleString('en-IN')}`, `₹${Math.round(opt2.interest).toLocaleString('en-IN')}`, `₹${Math.round(interestDiff).toLocaleString('en-IN')}`],
+        ['Total Repayment', `₹${Math.round(opt1.total).toLocaleString('en-IN')}`, `₹${Math.round(opt2.total).toLocaleString('en-IN')}`, `₹${Math.round(savings).toLocaleString('en-IN')}`]
+      ],
+      startY: 155,
+      theme: 'striped',
+      headStyles: { fillColor: [15, 39, 71], textColor: [255, 255, 255], fontStyle: 'bold' },
+      styles: { fontSize: 9, cellPadding: 8, font: 'helvetica' }
+    });
+
+    doc.save(`CLN_Loan_Comparison_${Math.round(opt1.p)}.pdf`);
+  }
+</script>
+</body>
+</html>

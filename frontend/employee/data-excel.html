@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CLN Lending Suite — My Assigned Data</title>
+  <meta name="description" content="Employee assigned Excel sheets — Update disposition and sub-disposition for assigned phone numbers." />
+  <meta name="theme-color" content="#0f2747" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
+  <link rel="stylesheet" href="/css/styles.css" />
+
+  <style>
+    /* ═══ Module-scoped styles ═══════════════════════════════════════════════ */
+    .content-body { padding: 24px; }
+
+    /* ── Assignment cards ── */
+    .assign-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 16px; margin-bottom: 24px;
+    }
+    .assign-card {
+      background: var(--bg-card); border: 1.5px solid var(--border);
+      border-radius: var(--radius); padding: 20px;
+      box-shadow: var(--shadow-soft); transition: all .25s ease;
+      cursor: pointer; position: relative; overflow: hidden;
+    }
+    .assign-card::before {
+      content:''; position:absolute; top:0; left:0; right:0; height:3px;
+      background: linear-gradient(90deg, var(--accent), #22c55e);
+    }
+    .assign-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-medium); border-color: var(--accent); }
+    .assign-card.completed::before { background: linear-gradient(90deg, #22c55e, #16a34a); }
+    .assign-card.completed { border-color: rgba(34,197,94,.3); }
+    .assign-card-header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:14px; }
+    .assign-card-title { font-size:14px; font-weight:700; color:var(--text-primary); line-height:1.3; word-break:break-word; }
+    .assign-card-meta  { font-size:12px; color:var(--text-secondary); margin-top:4px; }
+    .assign-stats { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:14px; }
+    .assign-stat  { text-align:center; background:var(--bg-body); border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 6px; }
+    .assign-stat-val { font-size:20px; font-weight:800; color:var(--text-primary); }
+    .assign-stat-lbl { font-size:10px; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:.4px; margin-top:2px; }
+    .prog-bar { height:6px; border-radius:999px; background:var(--bg-secondary); overflow:hidden; margin-bottom:8px; }
+    .prog-fill { height:100%; border-radius:999px; background:linear-gradient(90deg,var(--accent),#22c55e); transition:width .5s; }
+    .prog-row  { display:flex; align-items:center; justify-content:space-between; font-size:12px; color:var(--text-secondary); margin-bottom:14px; }
+    .open-btn  { width:100%; padding:10px; font-size:13px; font-weight:700; border:none; border-radius:var(--radius-sm); background:linear-gradient(135deg,var(--accent),#1d4ed8); color:#fff; cursor:pointer; transition:all .2s; }
+    .open-btn:hover { transform:scale(1.02); box-shadow:0 4px 14px rgba(15,39,71,.3); }
+
+    /* ── Badge ── */
+    .badge { display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:999px; font-size:11px; font-weight:700; white-space:nowrap; }
+    .badge-assigned   { background:rgba(59,130,246,.12);  color:#2563eb; }
+    .badge-inprogress { background:rgba(245,158,11,.13);  color:#b45309; }
+    .badge-completed  { background:rgba(34,197,94,.13);   color:#15803d; }
+    .badge-closed     { background:rgba(148,163,184,.15); color:#64748b; }
+    .badge-pending    { background:rgba(239,68,68,.12);   color:#dc2626; }
+    .badge-saved      { background:rgba(34,197,94,.13);   color:#15803d; }
+    .badge-editing    { background:rgba(245,158,11,.13);  color:#b45309; }
+
+    /* ── Work sheet view ── */
+    .sheet-header {
+      display:flex; align-items:center; gap:12px; margin-bottom:20px; flex-wrap:wrap;
+    }
+    .back-btn {
+      display:inline-flex; align-items:center; gap:6px;
+      padding:8px 14px; border:1.5px solid var(--border); border-radius:var(--radius-sm);
+      background:var(--bg-card); color:var(--text-primary); font-size:13px; font-weight:600;
+      cursor:pointer; transition:all .2s;
+    }
+    .back-btn:hover { border-color:var(--accent); color:var(--accent); }
+    .sheet-title { font-size:18px; font-weight:800; color:var(--text-primary); }
+    .sheet-subtitle { font-size:13px; color:var(--text-secondary); margin-top:2px; }
+
+    /* ── KPI row ── */
+    .kpi-mini-row { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px; }
+    @media(max-width:640px){ .kpi-mini-row { grid-template-columns:repeat(2,1fr); } }
+    .kpi-mini { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:14px 16px; }
+    .kpi-mini-val { font-size:22px; font-weight:800; color:var(--text-primary); }
+    .kpi-mini-lbl { font-size:11px; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:.4px; margin-top:2px; }
+
+    /* ── Records table ── */
+    .rec-table-wrap { border-radius:var(--radius); border:1px solid var(--border); overflow:hidden; }
+    .rec-table-wrap table { width:100%; border-collapse:collapse; font-size:13px; }
+    .rec-table-wrap thead th {
+      background:linear-gradient(90deg,var(--bg-secondary),var(--bg-card));
+      padding:11px 14px; font-size:11px; font-weight:700; text-transform:uppercase;
+      letter-spacing:.5px; color:var(--text-secondary); border-bottom:2px solid var(--border);
+      text-align:left; position:sticky; top:0; z-index:1; white-space:nowrap;
+    }
+    .rec-table-wrap tbody tr { transition:background .15s; }
+    .rec-table-wrap tbody tr:hover { background:var(--bg-secondary); }
+    .rec-table-wrap tbody td { padding:10px 14px; border-bottom:1px solid var(--border); vertical-align:middle; }
+    .rec-table-wrap tbody tr:last-child td { border-bottom:none; }
+    .rec-table-wrap tbody tr.completed-row { background:rgba(34,197,94,.04); }
+
+    /* ── Disposition select (searchable) ── */
+    .disp-wrap { position:relative; }
+    .disp-input {
+      width:100%; padding:7px 10px; border:1.5px solid var(--border); border-radius:6px;
+      background:var(--bg-card); color:var(--text-primary); font-size:12px; font-family:inherit;
+      cursor:pointer; transition:border .2s;
+    }
+    .disp-input:focus { outline:none; border-color:var(--accent); }
+    .disp-input.filled { border-color:rgba(34,197,94,.5); background:rgba(34,197,94,.04); }
+    .disp-dropdown {
+      position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:999;
+      background:var(--bg-card); border:1.5px solid var(--accent); border-radius:8px;
+      box-shadow:var(--shadow-medium); max-height:220px; overflow-y:auto; display:none;
+    }
+    .disp-dropdown.open { display:block; }
+    .disp-search { padding:8px 10px; border-bottom:1px solid var(--border); }
+    .disp-search input { width:100%; padding:6px 8px; border:1px solid var(--border); border-radius:4px; font-size:12px; background:var(--bg-body); color:var(--text-primary); }
+    .disp-option { padding:8px 12px; font-size:12px; cursor:pointer; transition:background .15s; color:var(--text-primary); }
+    .disp-option:hover, .disp-option.active { background:var(--accent-soft); color:var(--accent); }
+
+    /* ── Sub Disposition ── */
+    .subdisp-wrap { position:relative; }
+    .subdisp-input {
+      width:100%; padding:7px 10px; border:1.5px solid var(--border); border-radius:6px;
+      background:var(--bg-card); color:var(--text-primary); font-size:12px; font-family:inherit;
+      transition:border .2s;
+    }
+    .subdisp-input:focus { outline:none; border-color:var(--accent); }
+    .subdisp-input.filled { border-color:rgba(34,197,94,.5); background:rgba(34,197,94,.04); }
+    .subdisp-dropdown {
+      position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:998;
+      background:var(--bg-card); border:1.5px solid var(--accent); border-radius:8px;
+      box-shadow:var(--shadow-medium); max-height:180px; overflow-y:auto; display:none;
+    }
+    .subdisp-dropdown.open { display:block; }
+    .subdisp-option { padding:8px 12px; font-size:12px; cursor:pointer; transition:background .15s; color:var(--text-primary); }
+    .subdisp-option:hover { background:var(--accent-soft); color:var(--accent); }
+
+    /* ── Save button per row ── */
+    .save-btn { padding:6px 12px; font-size:11px; font-weight:700; border:none; border-radius:6px; cursor:pointer; transition:all .2s; white-space:nowrap; }
+    .save-btn.needs-save { background:linear-gradient(135deg,var(--accent),#1d4ed8); color:#fff; }
+    .save-btn.saved { background:rgba(34,197,94,.12); color:#15803d; cursor:default; }
+    .save-btn.saving { background:var(--bg-secondary); color:var(--text-muted); cursor:default; }
+
+    /* ── Submit bar ── */
+    .submit-bar {
+      position:sticky; bottom:0; left:0; right:0; z-index:10;
+      background:linear-gradient(135deg, var(--bg-card), var(--bg-secondary));
+      border-top:1.5px solid var(--border); padding:14px 20px;
+      display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+      box-shadow:0 -4px 16px rgba(0,0,0,.1);
+    }
+    .submit-info { font-size:13px; color:var(--text-secondary); }
+    .submit-btn {
+      padding:10px 24px; font-size:14px; font-weight:700; border:none; border-radius:var(--radius-sm);
+      background:linear-gradient(135deg,#15803d,#16a34a); color:#fff; cursor:pointer; transition:all .2s;
+    }
+    .submit-btn:hover { transform:scale(1.03); box-shadow:0 4px 14px rgba(21,128,61,.35); }
+    .submit-btn:disabled { opacity:.5; cursor:not-allowed; transform:none; }
+
+    /* ── Search bar ── */
+    .search-bar { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; align-items:center; }
+    .search-bar input, .search-bar select { padding:8px 12px; border:1.5px solid var(--border); border-radius:var(--radius-sm); background:var(--bg-card); color:var(--text-primary); font-size:13px; }
+    .search-bar input { flex:1; min-width:160px; max-width:260px; }
+
+    /* ── Empty / skeleton ── */
+    .skeleton { background:linear-gradient(90deg,var(--bg-secondary) 25%,var(--bg-card) 50%,var(--bg-secondary) 75%); background-size:200% 100%; animation:shimmer 1.4s infinite; border-radius:6px; height:48px; margin-bottom:10px; }
+    @keyframes shimmer { 0%{background-position:200% 0;} 100%{background-position:-200% 0;} }
+    .empty-state { text-align:center; padding:60px 24px; color:var(--text-secondary); }
+    .empty-state svg { width:56px; height:56px; stroke:var(--text-muted); fill:none; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; margin:0 auto 16px; display:block; }
+    .empty-state h3 { font-size:16px; font-weight:700; color:var(--text-primary); margin-bottom:6px; }
+
+    /* ── Toast ── */
+    .toast-wrap { position:fixed; bottom:80px; right:24px; display:flex; flex-direction:column-reverse; gap:8px; z-index:9999; }
+    .toast { padding:12px 18px; border-radius:var(--radius-sm); font-size:13px; font-weight:600; box-shadow:var(--shadow-medium); color:#fff; min-width:240px; max-width:360px; animation:toastIn .3s ease; display:flex; align-items:center; gap:10px; }
+    .toast-success { background:linear-gradient(135deg,#15803d,#16a34a); }
+    .toast-error   { background:linear-gradient(135deg,#dc2626,#b91c1c); }
+    .toast-info    { background:linear-gradient(135deg,var(--accent),#1d4ed8); }
+    @keyframes toastIn { from{opacity:0;transform:translateY(12px);} to{opacity:1;transform:none;} }
+
+    /* The global styles.css uses .modal-overlay.show — no custom override needed */
+  </style>
+</head>
+<body>
+<div class="app-layout">
+
+  <!-- ═══ SIDEBAR ═══ -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">
+        <div class="logo-icon">CLN</div>
+        <div><h2><span class="emoji-sm">💼</span>CLN Lending Suite</h2><span>Employee Workspace</span></div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">
+        <div class="nav-section-title">Main</div>
+        <a href="/employee/dashboard.html" class="nav-item"><span class="nav-icon emoji-sm">📊</span> Dashboard</a>
+        <a href="/employee/add-customer.html" class="nav-item"><span class="nav-icon emoji-sm">➕</span> Add Customer</a>
+        <a href="/employee/my-customers.html" class="nav-item"><span class="nav-icon emoji-sm">👥</span> My Customers</a>
+        <a href="/employee/loans.html" class="nav-item"><span class="nav-icon emoji-sm">💼</span> My Loans</a>
+        <a href="/employee/emi-calculator.html" class="nav-item"><span class="nav-icon emoji-sm">🧮</span> EMI Calculator</a>
+        <a href="/employee/data-excel.html" class="nav-item active">
+          <span class="nav-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/></svg>
+          </span> My Assigned Data
+        </a>
+        <a href="/employee/apr.html" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span> APR</a>
+
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-info">
+        <div class="user-avatar" id="sidebar-user-avatar">E</div>
+        <div class="user-details"><p id="sidebar-user-name">Employee</p><span id="sidebar-user-role">employee</span></div>
+      </div>
+      <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
+  </aside>
+
+  <div class="sidebar-overlay" onclick="toggleMobileSidebar()"></div>
+
+  <!-- ═══ MAIN ═══ -->
+  <main class="main-content">
+    <div class="topbar">
+      <button class="mobile-menu-btn" onclick="toggleMobileSidebar()">Menu</button>
+      <div class="topbar-title">
+        <h2 id="page-title">
+          <svg style="width:20px;height:20px;vertical-align:middle;margin-right:6px;stroke:var(--accent);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/></svg>
+          My Assigned Data
+        </h2>
+        <p id="page-subtitle">View and update your assigned Excel sheets</p>
+      </div>
+      <div class="topbar-actions">
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px;">
+          <span id="current-date" style="font-size:12px;font-weight:600;color:var(--text-primary);"></span>
+          <span id="current-time" style="font-size:11px;color:var(--text-muted);"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="content-body">
+      <div id="page-alert" class="alert" style="display:none;"></div>
+
+      <!-- ─── View: Assignment List ─────────────────────────────────────── -->
+      <div id="view-list">
+        <div id="list-loading">
+          <div class="skeleton"></div>
+          <div class="skeleton" style="height:120px;border-radius:var(--radius);"></div>
+          <div class="skeleton" style="height:120px;border-radius:var(--radius);"></div>
+        </div>
+
+        <div id="list-empty" style="display:none;">
+          <div class="empty-state">
+            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 3v18"/></svg>
+            <h3>No Assignments Yet</h3>
+            <p>You have not been assigned any Excel sheets. Check back later or contact your admin.</p>
+          </div>
+        </div>
+
+        <div class="assign-grid" id="assign-grid"></div>
+      </div>
+
+      <!-- ─── View: Sheet Editor ────────────────────────────────────────── -->
+      <div id="view-sheet" style="display:none;">
+        <div class="sheet-header">
+          <button class="back-btn" onclick="goBackToList()">
+            <svg style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;" viewBox="0 0 24 24"><path d="M10 6 4 12l6 6"/><path d="M4 12h16"/></svg>
+            Back to List
+          </button>
+          <div>
+            <div class="sheet-title" id="sheet-title">Sheet Name</div>
+            <div class="sheet-subtitle" id="sheet-subtitle"></div>
+          </div>
+          <span id="sheet-status-badge"></span>
+        </div>
+
+        <!-- KPI mini row -->
+        <div class="kpi-mini-row">
+          <div class="kpi-mini"><div class="kpi-mini-val" id="sh-total">—</div><div class="kpi-mini-lbl">Total</div></div>
+          <div class="kpi-mini"><div class="kpi-mini-val" id="sh-completed" style="color:#15803d;">—</div><div class="kpi-mini-lbl">Completed</div></div>
+          <div class="kpi-mini"><div class="kpi-mini-val" id="sh-pending" style="color:#dc2626;">—</div><div class="kpi-mini-lbl">Pending</div></div>
+          <div class="kpi-mini"><div class="kpi-mini-val" id="sh-pct">—</div><div class="kpi-mini-lbl">Progress</div></div>
+        </div>
+
+        <!-- Search & filter -->
+        <div class="search-bar">
+          <input id="rec-search" type="text" placeholder="Search phone / disposition..." oninput="renderRecordsTable()" />
+          <select id="rec-filter" onchange="renderRecordsTable()">
+            <option value="">All Records</option>
+            <option value="completed">Completed</option>
+            <option value="pending">Pending</option>
+          </select>
+          <button class="btn btn-secondary btn-sm" onclick="loadSheetRecords()">Refresh</button>
+        </div>
+
+        <!-- Records table -->
+        <div class="rec-table-wrap" id="rec-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:50px;">#</th>
+                <th style="min-width:140px;">Phone Number</th>
+                <th style="min-width:220px;">Disposition</th>
+                <th style="min-width:220px;">Sub Disposition</th>
+                <th style="width:80px;">Status</th>
+                <th style="width:80px;">Save</th>
+              </tr>
+            </thead>
+            <tbody id="rec-tbody"></tbody>
+          </table>
+        </div>
+
+        <!-- Submit bar -->
+        <div class="submit-bar" id="submit-bar">
+          <div class="submit-info" id="submit-info">Complete all rows before submitting.</div>
+          <button class="submit-btn" id="submit-btn" onclick="openSubmitConfirm()">
+            Submit Completed Work
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ═══ TOAST ═══ -->
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<!-- ═══ MODAL: Submit Confirm ═══ -->
+<div class="modal-overlay" id="submit-modal">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header">
+      <h3>Submit Work</h3>
+      <button class="modal-close" onclick="closeModal('submit-modal')">Close</button>
+    </div>
+    <div style="padding:16px 0;">
+      <p style="font-size:14px;color:var(--text-primary);">Are you sure you want to submit your work? Once submitted, this sheet will be <strong>locked</strong> and you will not be able to make further changes.</p>
+      <p style="font-size:13px;color:var(--text-secondary);margin-top:10px;" id="submit-summary"></p>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('submit-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="doSubmit()">Confirm &amp; Submit</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/runtime-config.js?v=20260523a"></script>
+<script src="/js/api.js?v=20260516c"></script>
+<script>
+// ── Bootstrap ─────────────────────────────────────────────────────────────
+const user = requireRole('employee');
+if (user) {
+  renderSidebarUser();
+  applyTheme(getResolvedTheme());
+  applyIconography();
+  applyActionButtonIcons();
+  document.getElementById('current-date').textContent = new Date().toLocaleDateString('en-IN', {weekday:'short',year:'numeric',month:'short',day:'numeric'});
+  setInterval(() => {
+    const el = document.getElementById('current-time');
+    if (el) el.textContent = new Date().toLocaleTimeString('en-IN', {hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true});
+  }, 1000);
+  init();
+}
+
+// ── Disposition / Sub-Disposition Data ────────────────────────────────────
+const DISP_OPTIONS = [
+  'Connected','Not Connected','Ringing','Busy','Switched Off','Out of Coverage',
+  'Number Invalid','Wrong Number','Call Back Requested','Call Later','Voice Mail',
+  'No Response','Customer Interested','Customer Not Interested','Follow Up Required',
+  'Loan Inquiry','Existing Customer','Duplicate Lead','Do Not Call','Language Barrier',
+  'Call Disconnected','Pending Verification','Converted','Rejected','Other'
+];
+
+const SUB_DISP_MAP = {
+  'Connected':              ['Interested','Documents Pending','EMI Explained','Loan Eligible','Follow Up Tomorrow','Need Salary Slip','Need Bank Statement','Other'],
+  'Not Connected':          ['Number Busy','Switched Off','Out of Network','Try Again Later','Other'],
+  'Call Back Requested':    ['Morning','Afternoon','Evening','Tomorrow','Next Week','Other'],
+  'Customer Interested':    ['Loan Amount Discussed','Documents Requested','Site Visit Planned','Other'],
+  'Customer Not Interested':['Already Taken Loan','High Interest Concern','Financial Issue','Using Another Bank','Not Required','Other'],
+  'Follow Up Required':     ['After 2 Days','After 1 Week','End of Month','Other'],
+  'Ringing':                ['No Answer','Hung Up','Left Voicemail','Other'],
+  'Busy':                   ['Try Later','Scheduled Callback','Other'],
+  'Number Invalid':         ['Wrong Number','Non-Existent','Other'],
+  'Converted':              ['Loan Disbursed','Loan Approved','Application Submitted','Other'],
+  'Rejected':               ['Low CIBIL','Insufficient Income','Document Issues','Other'],
+  'default':                ['Other']
+};
+
+function getSubDispOptions(disp) {
+  return SUB_DISP_MAP[disp] || SUB_DISP_MAP['default'];
+}
+
+// ── State ─────────────────────────────────────────────────────────────────
+let allAssignments    = [];
+let currentAssignment = null;
+let allRecords        = [];
+let pendingChanges    = {};  // { recordId: { disposition, sub_disposition } }
+let savingSet         = new Set();
+let sheetLocked       = false;
+
+// ── Init ──────────────────────────────────────────────────────────────────
+async function init() {
+  await loadAssignments();
+}
+
+// ── Load Assignments ──────────────────────────────────────────────────────
+async function loadAssignments() {
+  document.getElementById('list-loading').style.display = 'block';
+  document.getElementById('assign-grid').innerHTML = '';
+  document.getElementById('list-empty').style.display = 'none';
+  try {
+    const res        = await apiFetch('/excel/my-assignments');
+    allAssignments   = res.assignments || [];
+    renderAssignmentList();
+  } catch(e) {
+    const msg = e.message || '';
+    if (msg === 'Session expired') return;
+    if (msg.toLowerCase().includes('working hours') || msg.toLowerCase().includes('deactivated')) {
+      showAlert(msg, 'error');
+    } else {
+      showAlert('Something went wrong while loading your assignments. ' + (msg || 'Please refresh the page.'), 'error');
+    }
+  } finally {
+    document.getElementById('list-loading').style.display = 'none';
+  }
+}
+
+function renderAssignmentList() {
+  const grid  = document.getElementById('assign-grid');
+  const empty = document.getElementById('list-empty');
+
+  if (allAssignments.length === 0) {
+    grid.innerHTML = ''; empty.style.display = 'block'; return;
+  }
+  empty.style.display = 'none';
+
+  grid.innerHTML = allAssignments.map(a => {
+    const pct    = a.completion_pct || 0;
+    const isDone = a.status === 'Completed';
+    const badgeCls = isDone ? 'badge-completed' : (a.status === 'In Progress' ? 'badge-inprogress' : 'badge-assigned');
+    return `<div class="assign-card ${isDone ? 'completed' : ''}" onclick="openSheet(${a.id})">
+      <div class="assign-card-header">
+        <div>
+          <div class="assign-card-title">${escHtml(a.original_name)}</div>
+          <div class="assign-card-meta">Assigned: ${fmtDate(a.assigned_at)}</div>
+        </div>
+        <span class="badge ${badgeCls}">${escHtml(a.status)}</span>
+      </div>
+      <div class="assign-stats">
+        <div class="assign-stat"><div class="assign-stat-val">${a.total_records}</div><div class="assign-stat-lbl">Total</div></div>
+        <div class="assign-stat"><div class="assign-stat-val" style="color:#15803d;">${a.completed||0}</div><div class="assign-stat-lbl">Done</div></div>
+        <div class="assign-stat"><div class="assign-stat-val" style="color:#dc2626;">${a.pending||0}</div><div class="assign-stat-lbl">Pending</div></div>
+      </div>
+      <div class="prog-row"><span>${pct}% complete</span><span style="font-size:11px;">Updated: ${fmtDate(a.file_updated_at)}</span></div>
+      <div class="prog-bar"><div class="prog-fill" style="width:${pct}%;"></div></div>
+      <button class="open-btn" onclick="event.stopPropagation();openSheet(${a.id})">
+        ${isDone ? 'View Sheet (Read-only)' : 'Open &amp; Edit Sheet'}
+      </button>
+    </div>`;
+  }).join('');
+}
+
+// ── Open Sheet ────────────────────────────────────────────────────────────
+async function openSheet(assignmentId) {
+  currentAssignment = allAssignments.find(a => a.id === assignmentId);
+  if (!currentAssignment) return;
+
+  sheetLocked    = currentAssignment.status === 'Completed' || currentAssignment.file_status === 'Closed';
+  pendingChanges = {};
+  allRecords     = [];
+
+  document.getElementById('view-list').style.display  = 'none';
+  document.getElementById('view-sheet').style.display = 'block';
+  document.getElementById('sheet-title').textContent   = currentAssignment.original_name;
+  document.getElementById('sheet-subtitle').textContent = `Assignment ID: ${currentAssignment.id}`;
+  document.getElementById('sheet-status-badge').innerHTML = statusBadge(currentAssignment.status);
+  document.getElementById('submit-bar').style.display = sheetLocked ? 'none' : 'flex';
+  document.getElementById('rec-search').value = '';
+  document.getElementById('rec-filter').value = '';
+
+  await loadSheetRecords();
+}
+
+async function loadSheetRecords() {
+  if (!currentAssignment) return;
+  try {
+    const res  = await apiFetch(`/excel/assignments/${currentAssignment.id}/records?limit=1000`);
+    allRecords = res.records || [];
+    updateSheetKPIs();
+    renderRecordsTable();
+  } catch(e) { showToast('Failed to load records.', 'error'); }
+}
+
+function updateSheetKPIs() {
+  const total     = allRecords.length;
+  const completed = allRecords.filter(r => r.status === 'Completed').length;
+  const pending   = total - completed;
+  const pct       = total > 0 ? Math.round((completed / total) * 100) : 0;
+  document.getElementById('sh-total').textContent     = total;
+  document.getElementById('sh-completed').textContent = completed;
+  document.getElementById('sh-pending').textContent   = pending;
+  document.getElementById('sh-pct').textContent       = pct + '%';
+  document.getElementById('submit-info').textContent  = `${completed} of ${total} records completed (${pct}%)`;
+}
+
+function renderRecordsTable() {
+  const search = (document.getElementById('rec-search').value || '').toLowerCase();
+  const filter = document.getElementById('rec-filter').value;
+
+  let records = allRecords;
+  if (search) records = records.filter(r =>
+    r.phone_number.includes(search) ||
+    (r.disposition||'').toLowerCase().includes(search) ||
+    (r.sub_disposition||'').toLowerCase().includes(search)
+  );
+  if (filter === 'completed') records = records.filter(r => r.status === 'Completed');
+  if (filter === 'pending')   records = records.filter(r => r.status === 'Pending');
+
+  const tbody = document.getElementById('rec-tbody');
+  tbody.innerHTML = records.map(r => buildRecordRow(r)).join('');
+
+  // Attach event listeners
+  records.forEach(r => attachRowListeners(r.id));
+}
+
+function buildRecordRow(r) {
+  const pending    = pendingChanges[r.id];
+  const disp       = pending ? pending.disposition    : (r.disposition    || '');
+  const subDisp    = pending ? pending.sub_disposition : (r.sub_disposition || '');
+  const isDone     = r.status === 'Completed' && !pending;
+  const hasPending = !!pending;
+  const rowClass   = isDone ? 'completed-row' : '';
+  const rowLocked  = sheetLocked;
+
+  const saveBtnClass = hasPending ? 'save-btn needs-save' : 'save-btn saved';
+  const saveBtnTxt   = hasPending ? 'Save' : 'Saved';
+
+  const subOpts = getSubDispOptions(disp);
+
+  const dispHtml = rowLocked
+    ? `<span style="font-size:12px;color:var(--text-primary);">${escHtml(disp||'—')}</span>`
+    : `<div class="disp-wrap" id="disp-wrap-${r.id}">
+        <input class="disp-input${disp?'  filled':''}" id="disp-input-${r.id}" type="text" value="${escHtml(disp)}" placeholder="Select disposition..." readonly onclick="toggleDispDropdown(${r.id})" />
+        <div class="disp-dropdown" id="disp-dd-${r.id}">
+          <div class="disp-search"><input type="text" placeholder="Search..." oninput="filterDispDropdown(${r.id}, this.value)" /></div>
+          ${DISP_OPTIONS.map(o => `<div class="disp-option${disp===o?' active':''}" onclick="selectDisp(${r.id},'${escHtml(o)}')">${escHtml(o)}</div>`).join('')}
+        </div>
+      </div>`;
+
+  const subHtml = rowLocked
+    ? `<span style="font-size:12px;color:var(--text-primary);">${escHtml(subDisp||'—')}</span>`
+    : `<div class="subdisp-wrap" id="subdisp-wrap-${r.id}">
+        <input class="subdisp-input${subDisp?' filled':''}" id="subdisp-input-${r.id}" type="text" value="${escHtml(subDisp)}" placeholder="Sub disposition or type custom..." oninput="onSubDispInput(${r.id},this.value)" onfocus="showSubDispDD(${r.id})" />
+        <div class="subdisp-dropdown" id="subdisp-dd-${r.id}">
+          ${subOpts.map(o => `<div class="subdisp-option" onclick="selectSubDisp(${r.id},'${escHtml(o)}')">${escHtml(o)}</div>`).join('')}
+        </div>
+      </div>`;
+
+  const saveHtml = rowLocked
+    ? ''
+    : `<button class="${saveBtnClass}" id="save-btn-${r.id}" onclick="saveRow(${r.id})">${saveBtnTxt}</button>`;
+
+  return `<tr class="${rowClass}" id="rec-row-${r.id}">
+    <td style="color:var(--text-muted);font-size:11px;">${r.row_index}</td>
+    <td style="font-weight:700;">${escHtml(r.phone_number)}</td>
+    <td>${dispHtml}</td>
+    <td>${subHtml}</td>
+    <td>${statusBadge(r.status)}</td>
+    <td>${saveHtml}</td>
+  </tr>`;
+}
+
+function attachRowListeners(rId) {
+  // Close dropdowns when clicking outside
+  document.addEventListener('click', (e) => {
+    const dd = document.getElementById(`disp-dd-${rId}`);
+    const sddd = document.getElementById(`subdisp-dd-${rId}`);
+    if (dd && !dd.closest('.disp-wrap')?.contains(e.target))   dd.classList.remove('open');
+    if (sddd && !sddd.closest('.subdisp-wrap')?.contains(e.target)) sddd.classList.remove('open');
+  }, { once: false });
+}
+
+// ── Disposition Dropdown ──────────────────────────────────────────────────
+function toggleDispDropdown(rId) {
+  const dd = document.getElementById(`disp-dd-${rId}`);
+  if (!dd) return;
+  document.querySelectorAll('.disp-dropdown.open').forEach(d => { if (d !== dd) d.classList.remove('open'); });
+  dd.classList.toggle('open');
+}
+
+function filterDispDropdown(rId, search) {
+  const dd = document.getElementById(`disp-dd-${rId}`);
+  if (!dd) return;
+  dd.querySelectorAll('.disp-option').forEach(opt => {
+    opt.style.display = opt.textContent.toLowerCase().includes(search.toLowerCase()) ? '' : 'none';
+  });
+}
+
+function selectDisp(rId, value) {
+  const inp = document.getElementById(`disp-input-${rId}`);
+  if (!inp) return;
+  inp.value = value;
+  inp.classList.toggle('filled', !!value);
+  document.getElementById(`disp-dd-${rId}`).classList.remove('open');
+
+  // Update sub-disp dropdown options
+  const subDD = document.getElementById(`subdisp-dd-${rId}`);
+  if (subDD) {
+    const opts = getSubDispOptions(value);
+    subDD.innerHTML = opts.map(o => `<div class="subdisp-option" onclick="selectSubDisp(${rId},'${escHtml(o)}')">${escHtml(o)}</div>`).join('');
+    // Clear sub-disp if disposition changed
+    const subInp = document.getElementById(`subdisp-input-${rId}`);
+    if (subInp) { subInp.value = ''; subInp.classList.remove('filled'); }
+  }
+
+  markDirty(rId, 'disposition', value);
+}
+
+// ── Sub Disposition ───────────────────────────────────────────────────────
+function showSubDispDD(rId) {
+  const dd   = document.getElementById(`subdisp-dd-${rId}`);
+  const disp = document.getElementById(`disp-input-${rId}`)?.value || '';
+  if (!dd) return;
+  const opts = getSubDispOptions(disp);
+  dd.innerHTML = opts.map(o => `<div class="subdisp-option" onclick="selectSubDisp(${rId},'${escHtml(o)}')">${escHtml(o)}</div>`).join('');
+  dd.classList.add('open');
+}
+
+function onSubDispInput(rId, value) {
+  const inp = document.getElementById(`subdisp-input-${rId}`);
+  if (inp) inp.classList.toggle('filled', !!value);
+  // Filter sub-disp dropdown
+  const dd = document.getElementById(`subdisp-dd-${rId}`);
+  if (dd) {
+    const disp = document.getElementById(`disp-input-${rId}`)?.value || '';
+    const opts = getSubDispOptions(disp);
+    const filtered = opts.filter(o => o.toLowerCase().includes(value.toLowerCase()));
+    dd.innerHTML = filtered.map(o => `<div class="subdisp-option" onclick="selectSubDisp(${rId},'${escHtml(o)}')">${escHtml(o)}</div>`).join('');
+    dd.classList.toggle('open', value.length > 0 && filtered.length > 0);
+  }
+  markDirty(rId, 'sub_disposition', value);
+}
+
+function selectSubDisp(rId, value) {
+  const inp = document.getElementById(`subdisp-input-${rId}`);
+  if (inp) { inp.value = value; inp.classList.toggle('filled', !!value); }
+  const dd = document.getElementById(`subdisp-dd-${rId}`);
+  if (dd) dd.classList.remove('open');
+  markDirty(rId, 'sub_disposition', value);
+}
+
+// ── Dirty tracking ────────────────────────────────────────────────────────
+function markDirty(rId, field, value) {
+  if (!pendingChanges[rId]) {
+    const rec = allRecords.find(r => r.id === rId);
+    pendingChanges[rId] = {
+      disposition:     rec ? (rec.disposition    || '') : '',
+      sub_disposition: rec ? (rec.sub_disposition || '') : ''
+    };
+  }
+  pendingChanges[rId][field] = value;
+  const btn = document.getElementById(`save-btn-${rId}`);
+  if (btn) { btn.className = 'save-btn needs-save'; btn.textContent = 'Save'; }
+}
+
+// ── Save Row ──────────────────────────────────────────────────────────────
+async function saveRow(rId) {
+  if (savingSet.has(rId)) return;
+  const changes = pendingChanges[rId];
+  if (!changes) return;
+
+  const btn = document.getElementById(`save-btn-${rId}`);
+  if (btn) { btn.className = 'save-btn saving'; btn.textContent = 'Saving...'; btn.disabled = true; }
+  savingSet.add(rId);
+
+  try {
+    const res = await apiFetch(`/excel/records/${rId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ disposition: changes.disposition, sub_disposition: changes.sub_disposition })
+    });
+
+    // Update local record
+    const idx = allRecords.findIndex(r => r.id === rId);
+    if (idx !== -1) allRecords[idx] = { ...allRecords[idx], ...res.record };
+    delete pendingChanges[rId];
+    savingSet.delete(rId);
+
+    if (btn) { btn.className = 'save-btn saved'; btn.textContent = 'Saved'; btn.disabled = false; }
+    updateSheetKPIs();
+    // Update row class
+    const row = document.getElementById(`rec-row-${rId}`);
+    if (row && res.record.status === 'Completed') row.classList.add('completed-row');
+    // Update status badge in same row
+    const cells = row?.querySelectorAll('td');
+    if (cells && cells[4]) cells[4].innerHTML = statusBadge(res.record.status);
+
+  } catch(e) {
+    savingSet.delete(rId);
+    if (btn) { btn.className = 'save-btn needs-save'; btn.textContent = 'Save'; btn.disabled = false; }
+    const msg = e.message || '';
+    if (msg === 'Session expired') return;
+    showToast('Changes could not be saved. ' + (msg || 'Please try again.'), 'error');
+  }
+}
+
+// ── Submit ────────────────────────────────────────────────────────────────
+function openSubmitConfirm() {
+  if (Object.keys(pendingChanges).length > 0) {
+    showToast('Please save all pending changes before submitting.', 'error'); return;
+  }
+  const completed = allRecords.filter(r => r.status === 'Completed').length;
+  const total     = allRecords.length;
+  document.getElementById('submit-summary').textContent = `${completed} of ${total} records are completed.`;
+  openModal('submit-modal');
+}
+
+async function doSubmit() {
+  const submitBtn = document.getElementById('submit-btn');
+  if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Submitting...'; }
+  try {
+    await apiFetch(`/excel/assignments/${currentAssignment.id}/submit`, { method:'POST' });
+    showToast('Work submitted successfully. The sheet is now locked.', 'success');
+    closeModal('submit-modal');
+    sheetLocked = true;
+    document.getElementById('submit-bar').style.display = 'none';
+    currentAssignment.status = 'Completed';
+    document.getElementById('sheet-status-badge').innerHTML = statusBadge('Completed');
+    await loadAssignments();
+    await loadSheetRecords();
+  } catch(e) {
+    closeModal('submit-modal');
+    const msg = e.message || '';
+    if (msg === 'Session expired') return;
+    if (msg.includes('incomplete') || msg.includes('Disposition')) {
+      showToast(msg, 'error');
+    } else {
+      showToast('Submission could not be completed. ' + (msg || 'Please try again.'), 'error');
+    }
+  } finally {
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Submit Completed Work'; }
+  }
+}
+
+function goBackToList() {
+  if (Object.keys(pendingChanges).length > 0) {
+    if (!confirm('You have unsaved changes. Are you sure you want to go back?')) return;
+  }
+  pendingChanges = {};
+  document.getElementById('view-sheet').style.display = 'none';
+  document.getElementById('view-list').style.display  = 'block';
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+async function apiFetch(path, opts = {}) {
+  const token = getToken();
+  const res   = await fetch(`${API_BASE}${path}`, {
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', ...(opts.headers||{}) },
+    ...opts
+  });
+  const data = await res.json().catch(() => ({ success: false, message: 'Server returned an invalid response.' }));
+  if (res.status === 401 || res.status === 403) {
+    const msg = data.message || '';
+    if (msg.toLowerCase().includes('expired') || msg.toLowerCase().includes('invalid') || res.status === 401) {
+      clearSession();
+      localStorage.setItem('login_error', 'Your session has expired. Please sign in again to continue.');
+      window.location.href = '/index.html';
+      throw new Error('Session expired');
+    }
+    if (msg.toLowerCase().includes('working hours') || msg.toLowerCase().includes('deactivated')) {
+      throw new Error(msg);
+    }
+    throw new Error(data.message || 'Access denied.');
+  }
+  if (!data.success) throw new Error(data.message || 'Something went wrong while processing your request. Please try again.');
+  return data;
+}
+
+function openModal(id)  { document.getElementById(id).classList.add('show'); document.body.style.overflow='hidden'; }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); document.body.style.overflow=''; }
+
+function statusBadge(s) {
+  const map = { 'Assigned':'badge-assigned','In Progress':'badge-inprogress','Completed':'badge-completed','Closed':'badge-closed','Pending':'badge-pending' };
+  return `<span class="badge ${map[s]||'badge-assigned'}">${escHtml(s||'Unknown')}</span>`;
+}
+
+function escHtml(v) {
+  if (v === null || v === undefined) return '';
+  return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function fmtDate(d) {
+  if (!d) return '—';
+  return new Date(d).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
+}
+
+function showAlert(msg, type) {
+  const el = document.getElementById('page-alert');
+  el.className = `alert alert-${type === 'error' ? 'danger':'success'}`;
+  el.textContent = msg; el.style.display = 'block';
+  setTimeout(() => { el.style.display = 'none'; }, 5000);
+}
+
+let toastN = 0;
+function showToast(msg, type='info') {
+  const wrap = document.getElementById('toast-wrap');
+  const id   = 't-' + (++toastN);
+  const cls  = type==='success'?'toast-success':type==='error'?'toast-error':'toast-info';
+  const icons= {success:'✓',error:'✗',info:'ℹ'};
+  const el   = document.createElement('div');
+  el.id = id; el.className = `toast ${cls}`;
+  el.innerHTML = `<span>${icons[type]||'ℹ'}</span><span>${escHtml(msg)}</span>`;
+  wrap.appendChild(el);
+  setTimeout(() => { el.style.opacity='0'; el.style.transition='opacity .3s'; setTimeout(()=>el.remove(),300); }, 3500);
+}
+</script>
+</body>
+</html>

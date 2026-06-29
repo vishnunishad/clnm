@@ -44,7 +44,7 @@ const adminController = {
 
   async addEmployee(req, res) {
     try {
-      const { name, email, password, phone } = req.body;
+      const { name, email, password, phone, department } = req.body;
       if (!name || !email || !password) {
         return res.status(400).json({ success: false, message: 'Name, email, and password are required.' });
       }
@@ -55,7 +55,7 @@ const adminController = {
       }
 
       const hashedPassword = await bcrypt.hash(password, 10);
-      const id = await UserModel.create({ name, email: email.toLowerCase(), password: hashedPassword, role: 'employee', phone });
+      const id = await UserModel.create({ name, email: email.toLowerCase(), password: hashedPassword, role: 'employee', phone, department });
 
       return res.status(201).json({ success: true, message: 'Employee created successfully.', id });
     } catch (err) {
@@ -67,9 +67,46 @@ const adminController = {
   async deactivateEmployee(req, res) {
     try {
       const { id } = req.params;
-      await UserModel.deactivate(id);
-      return res.json({ success: true, message: 'Employee deactivated.' });
+      const adminId = req.user?.id || null;
+
+      // Close any active attendance sessions
+      const [activeSessions] = await db.query(
+        'SELECT id, login_time FROM attendance_logs WHERE employee_id = ? AND session_status = "Active Session" AND logout_time IS NULL',
+        [id]
+      );
+      for (const s of activeSessions) {
+        const closeTime = new Date();
+        const loginTime = new Date(s.login_time);
+        const durationHours = Number((Math.max(0, closeTime - loginTime) / 3600000).toFixed(2));
+        await db.query(
+          'UPDATE attendance_logs SET logout_time = ?, total_working_hours = ?, session_status = "Logged Out" WHERE id = ?',
+          [closeTime, durationHours, s.id]
+        );
+      }
+
+      // Deactivate and clear all override/auto flags
+      await db.query(
+        `UPDATE users
+         SET is_active = 0, auto_deactivated = 0, manual_override = 0,
+             manual_override_by = NULL, manual_override_at = NULL
+         WHERE id = ?`,
+        [id]
+      );
+
+      // Audit log
+      const [emp] = await db.query('SELECT name FROM users WHERE id = ?', [id]);
+      if (emp[0]) {
+        const [admin] = await db.query('SELECT name FROM users WHERE id = ?', [adminId]);
+        const adminName = admin[0]?.name || 'Admin';
+        await db.query(
+          "INSERT INTO user_activity_logs (user_id, activity, status, ip_address) VALUES (?, ?, 'Success', '127.0.0.1')",
+          [id, `Admin Action\n\nEmployee: ${emp[0].name}\n\nAction: Deactivated by Admin\n\nAdmin: ${adminName}`]
+        );
+      }
+
+      return res.json({ success: true, message: 'Employee deactivated successfully.' });
     } catch (err) {
+      console.error('[Admin] Deactivate employee error:', err);
       return res.status(500).json({ success: false, message: 'Failed to deactivate employee.' });
     }
   },
@@ -77,10 +114,109 @@ const adminController = {
   async activateEmployee(req, res) {
     try {
       const { id } = req.params;
-      await UserModel.activate(id);
+      const adminId = req.user?.id || null;
+
+      // Normal activate: clear all override and auto-deactivation flags
+      await db.query(
+        `UPDATE users
+         SET is_active = 1, auto_deactivated = 0, manual_override = 0,
+             manual_override_by = NULL, manual_override_at = NULL
+         WHERE id = ?`,
+        [id]
+      );
+
+      // Audit log
+      const [emp] = await db.query('SELECT name FROM users WHERE id = ?', [id]);
+      if (emp[0]) {
+        const [admin] = await db.query('SELECT name FROM users WHERE id = ?', [adminId]);
+        const adminName = admin[0]?.name || 'Admin';
+        await db.query(
+          "INSERT INTO user_activity_logs (user_id, activity, status, ip_address) VALUES (?, ?, 'Success', '127.0.0.1')",
+          [id, `Admin Action\n\nEmployee: ${emp[0].name}\n\nAction: Activated by Admin\n\nAdmin: ${adminName}`]
+        );
+      }
+
       return res.json({ success: true, message: 'Employee activated.' });
     } catch (err) {
       return res.status(500).json({ success: false, message: 'Failed to activate employee.' });
+    }
+  },
+
+  async activateOverride(req, res) {
+    try {
+      const { id } = req.params;
+      const adminId = req.user?.id || null;
+
+      // Set manual override — employee gets full access ignoring business hours
+      await db.query(
+        `UPDATE users
+         SET is_active = 1, auto_deactivated = 0, manual_override = 1,
+             manual_override_by = ?, manual_override_at = NOW()
+         WHERE id = ?`,
+        [adminId, id]
+      );
+
+      // Audit log
+      const [emp] = await db.query('SELECT name FROM users WHERE id = ?', [id]);
+      const [admin] = await db.query('SELECT name FROM users WHERE id = ?', [adminId]);
+      if (emp[0]) {
+        const adminName = admin[0]?.name || 'Admin';
+        await db.query(
+          "INSERT INTO user_activity_logs (user_id, activity, status, ip_address) VALUES (?, ?, 'Success', '127.0.0.1')",
+          [id, `Admin Action\n\nEmployee: ${emp[0].name}\n\nAction: Manual Override Activated\n\nAdmin: ${adminName}\n\nReason: Emergency Access`]
+        );
+      }
+
+      return res.json({ success: true, message: 'Manual override activated. Employee can now access the CRM outside business hours.' });
+    } catch (err) {
+      console.error('[Admin] Activate override error:', err);
+      return res.status(500).json({ success: false, message: 'Failed to activate override.' });
+    }
+  },
+
+  async removeOverride(req, res) {
+    try {
+      const { id } = req.params;
+      const adminId = req.user?.id || null;
+
+      // Clear override and deactivate immediately
+      const [activeSessions] = await db.query(
+        'SELECT id, login_time FROM attendance_logs WHERE employee_id = ? AND session_status = "Active Session" AND logout_time IS NULL',
+        [id]
+      );
+      for (const s of activeSessions) {
+        const closeTime = new Date();
+        const loginTime = new Date(s.login_time);
+        const durationHours = Number((Math.max(0, closeTime - loginTime) / 3600000).toFixed(2));
+        await db.query(
+          'UPDATE attendance_logs SET logout_time = ?, total_working_hours = ?, session_status = "Logged Out" WHERE id = ?',
+          [closeTime, durationHours, s.id]
+        );
+      }
+
+      await db.query(
+        `UPDATE users
+         SET is_active = 0, auto_deactivated = 1, manual_override = 0,
+             manual_override_by = NULL, manual_override_at = NULL
+         WHERE id = ?`,
+        [id]
+      );
+
+      // Audit log
+      const [emp] = await db.query('SELECT name FROM users WHERE id = ?', [id]);
+      const [admin] = await db.query('SELECT name FROM users WHERE id = ?', [adminId]);
+      if (emp[0]) {
+        const adminName = admin[0]?.name || 'Admin';
+        await db.query(
+          "INSERT INTO user_activity_logs (user_id, activity, status, ip_address) VALUES (?, ?, 'Success', '127.0.0.1')",
+          [id, `Admin Action\n\nEmployee: ${emp[0].name}\n\nAction: Manual Override Removed\n\nAdmin: ${adminName}`]
+        );
+      }
+
+      return res.json({ success: true, message: 'Manual override removed. Employee has been deactivated.' });
+    } catch (err) {
+      console.error('[Admin] Remove override error:', err);
+      return res.status(500).json({ success: false, message: 'Failed to remove override.' });
     }
   },
 
@@ -105,8 +241,8 @@ const adminController = {
   // ── Customers ───────────────────────────────────────────────
   async getCustomers(req, res) {
     try {
-      const { area, search, period } = req.query;
-      const customers = await CustomerModel.getAll({ area, search, period });
+      const { area, search, period, startDate, endDate } = req.query;
+      const customers = await CustomerModel.getAll({ area, search, period, startDate, endDate });
       return res.json({ success: true, data: customers });
     } catch (err) {
       return res.status(500).json({ success: false, message: 'Failed to fetch customers.' });
@@ -115,8 +251,8 @@ const adminController = {
 
   async exportCustomers(req, res) {
     try {
-      const { area, search, period } = req.query;
-      const customers = await CustomerModel.getAll({ area, search, period });
+      const { area, search, period, startDate, endDate } = req.query;
+      const customers = await CustomerModel.getAll({ area, search, period, startDate, endDate });
 
       // Fetch all loans to map them to customers
       const [allLoans] = await db.query('SELECT customer_id, amount, status FROM loans');
@@ -154,6 +290,7 @@ const adminController = {
         'Personal Gmail ID', 'Marital Status', 'Mother\'s Name', 'Spouse\'s Name', 'House Type',
         'Education', 'Company Name', 'Company Address', 'Official Email ID',
         'Current Work Experience', 'Total Work Experience', 'Net Monthly Income',
+        'Net Salary', 'Total Obligation',
         'Created Date', 'Updated Date'
       ];
 
@@ -211,6 +348,8 @@ const adminController = {
           curExp ? `"${curExp.replace(/"/g, '""')}"` : '—',
           totExp ? `"${totExp.replace(/"/g, '""')}"` : '—',
           income ? `"${income.replace(/"/g, '""')}"` : '—',
+          c.net_salary !== null ? c.net_salary : 0,
+          c.total_obligation !== null ? c.total_obligation : 0,
           new Date(c.created_at).toLocaleDateString('en-IN'),
           new Date(c.updated_at).toLocaleDateString('en-IN')
         ];
@@ -245,31 +384,173 @@ const adminController = {
   // ── Loans ───────────────────────────────────────────────────
   async getLoans(req, res) {
     try {
-      const { status, area, period, search } = req.query;
-      const loans = await LoanModel.getAll({ status, area, period, search });
+      const { 
+        status, 
+        area, 
+        period,
+        startDate,
+        endDate,
+        search,
+        employee,
+        loginStartDate,
+        loginEndDate,
+        uploadStartDate,
+        uploadEndDate,
+        disbursementStartDate,
+        disbursementEndDate,
+        periodDateType
+      } = req.query;
+      const loans = await LoanModel.getAll({ 
+        status, 
+        area, 
+        period,
+        startDate,
+        endDate,
+        search,
+        applied_by: employee || undefined,
+        loginStartDate,
+        loginEndDate,
+        uploadStartDate,
+        uploadEndDate,
+        disbursementStartDate,
+        disbursementEndDate,
+        periodDateType
+      });
       return res.json({ success: true, data: loans });
     } catch (err) {
+      console.error('[Admin] Fetch loans error:', err);
       return res.status(500).json({ success: false, message: 'Failed to fetch loans.' });
     }
   },
 
-  async getAreas(req, res) {
+  async getLoanDetail(req, res) {
     try {
-      const areas = await CustomerModel.getAreas();
-      return res.json({ success: true, data: areas });
+      const { id } = req.params;
+      const loan = await LoanModel.findById(id);
+      if (!loan) {
+        return res.status(404).json({ success: false, message: 'Loan record not found.' });
+      }
+      const history = await LoanModel.getHistory(id);
+      return res.json({ success: true, data: { loan, history } });
     } catch (err) {
-      return res.status(500).json({ success: false, message: 'Failed to fetch areas.' });
+      console.error('[Admin] Fetch loan detail error:', err);
+      return res.status(500).json({ success: false, message: 'Failed to fetch loan details.' });
     }
   },
 
-  // ── Export ──────────────────────────────────────────────────
+  async updateLoanStatus(req, res) {
+    const { id } = req.params;
+    const { status, notes, login_date, system_upload_date, disbursement_date, disbursement_amount } = req.body;
+    console.log(`[Admin] Incoming status update request - Loan ID: ${id}, Admin ID: ${req?.user?.id}, Payload:`, req.body);
+
+    try {
+      const allowedStatuses = ['Pending', 'Under Review', 'Documents Pending', 'Approved', 'Rejected', 'Loan Disbursed', 'Cancelled', 'Hold', 'ABND', 'Other'];
+      if (!allowedStatuses.includes(status)) {
+        console.warn(`[Admin] Invalid status update attempt - Status: ${status}`);
+        return res.status(400).json({ success: false, message: `Invalid status: ${status}. Allowed values are: ${allowedStatuses.join(', ')}` });
+      }
+
+      if (['Rejected', 'Hold', 'Cancelled'].includes(status) && (!notes || !notes.trim())) {
+        console.warn(`[Admin] Missing remarks for status: ${status}`);
+        return res.status(400).json({ success: false, message: 'Please enter remarks before updating this status.' });
+      }
+
+      if (status === 'Loan Disbursed') {
+        if (!disbursement_date) {
+          return res.status(400).json({ success: false, message: 'Please enter the disbursement date.' });
+        }
+        if (disbursement_amount === undefined || disbursement_amount === null || String(disbursement_amount).trim() === '') {
+          return res.status(400).json({ success: false, message: 'Please enter the disbursement amount.' });
+        }
+        const parsedAmt = parseFloat(disbursement_amount);
+        if (isNaN(parsedAmt) || parsedAmt < 0) {
+          return res.status(400).json({ success: false, message: 'Please enter a valid disbursement amount.' });
+        }
+      }
+
+      const loan = await LoanModel.findById(id);
+      if (!loan) {
+        console.warn(`[Admin] Loan record not found - Loan ID: ${id}`);
+        return res.status(404).json({ success: false, message: 'Loan record not found.' });
+      }
+
+      const affectedRows = await LoanModel.updateStatus(id, { 
+        status, 
+        notes, 
+        approved_by: req.user.id,
+        login_date,
+        system_upload_date,
+        disbursement_date,
+        disbursement_amount: status === 'Loan Disbursed' ? parseFloat(disbursement_amount) : null
+      });
+
+      console.log(`[Admin] Loan status updated successfully in DB - Loan ID: ${id}, Affected Rows: ${affectedRows}`);
+
+      // WhatsApp workflow trigger: Loan Lifecycle updates
+      let triggerCategory = null;
+      if (status === 'Approved') triggerCategory = 'Loan Approval';
+      else if (status === 'Rejected') triggerCategory = 'Loan Rejection';
+      else if (status === 'Loan Disbursed') triggerCategory = 'Loan Disbursement';
+
+      if (triggerCategory) {
+        try {
+          whatsappService.sendWorkflowMessage(triggerCategory, loan.customer_id, {
+            loan_number: 'LN-' + id,
+            loan_amount: loan.amount,
+            employee_id: req.user.id
+          });
+          console.log(`[Admin] WhatsApp workflow message sent for Category: ${triggerCategory}, Customer ID: ${loan.customer_id}`);
+        } catch (wsErr) {
+          console.error('[Admin] WhatsApp notification trigger error:', wsErr);
+        }
+      }
+
+      return res.json({ success: true, message: `Loan status updated to ${status}.` });
+    } catch (err) {
+      console.error(`[Admin] Error updating status for Loan ID ${id}:`, err.stack || err);
+      let errMsg = 'Failed to update loan status.';
+      if (err.code === 'ER_TRUNCATED_WRONG_VALUE' || err.sqlState === '22007') {
+        errMsg = `Validation failed: ${err.sqlMessage || 'Incorrect format or value'}`;
+      } else if (err.code === 'PROTOCOL_CONNECTION_LOST' || err.code === 'ECONNREFUSED') {
+        errMsg = 'Database connection failed.';
+      } else if (err.message) {
+        errMsg = err.message;
+      }
+      return res.status(500).json({ success: false, message: errMsg });
+    }
+  },
+
   async exportLoans(req, res) {
     try {
-      const { status, area, period } = req.query;
-      const loans = await LoanModel.getAll({ status, area, period });
+      const { 
+        status, 
+        area, 
+        period, 
+        search, 
+        loginStartDate, 
+        loginEndDate, 
+        uploadStartDate, 
+        uploadEndDate, 
+        disbursementStartDate, 
+        disbursementEndDate,
+        periodDateType
+      } = req.query;
+      const loans = await LoanModel.getAll({ 
+        status, 
+        area, 
+        period, 
+        search, 
+        loginStartDate, 
+        loginEndDate, 
+        uploadStartDate, 
+        uploadEndDate, 
+        disbursementStartDate, 
+        disbursementEndDate,
+        periodDateType
+      });
 
       // Build CSV manually
-      const headers = ['ID', 'Customer', 'Area', 'Phone', 'Amount', 'Purpose', 'Status', 'Applied By', 'Date'];
+      const headers = ['ID', 'Customer', 'Area', 'Phone', 'Amount', 'Purpose', 'Status', 'Applied By', 'Login Date', 'Upload Date', 'Disbursement Date', 'Disbursement Amount'];
       const rows = loans.map(l => [
         l.id,
         `"${l.customer_name}"`,
@@ -279,7 +560,10 @@ const adminController = {
         `"${l.purpose || ''}"`,
         l.status,
         `"${l.applied_by_name}"`,
-        new Date(l.created_at).toLocaleDateString('en-IN')
+        l.login_date ? new Date(l.login_date).toLocaleDateString('en-IN') : '',
+        l.system_upload_date ? new Date(l.system_upload_date).toLocaleDateString('en-IN') : '',
+        l.disbursement_date ? new Date(l.disbursement_date).toLocaleDateString('en-IN') : '',
+        l.disbursement_amount ? `"${'₹' + Number(l.disbursement_amount).toLocaleString('en-IN')}"` : '""'
       ]);
 
       const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
@@ -289,6 +573,15 @@ const adminController = {
       return res.send(csv);
     } catch (err) {
       return res.status(500).json({ success: false, message: 'Export failed.' });
+    }
+  },
+
+  async getAreas(req, res) {
+    try {
+      const areas = await CustomerModel.getAreas();
+      return res.json({ success: true, data: areas });
+    } catch (err) {
+      return res.status(500).json({ success: false, message: 'Failed to fetch areas.' });
     }
   },
 
@@ -339,6 +632,68 @@ const adminController = {
     } catch (err) {
       console.error('[Admin] Bulk delete loans error:', err);
       return res.status(500).json({ success: false, message: 'Bulk delete loans failed.' });
+    }
+  },
+
+  async getWorkingHours(req, res) {
+    try {
+      const [rows] = await db.query('SELECT setting_key, setting_value FROM system_settings WHERE setting_key IN ("auto_activation_time", "auto_deactivation_time")');
+      const settings = {};
+      rows.forEach(r => {
+        settings[r.setting_key] = r.setting_value;
+      });
+      return res.json({
+        success: true,
+        data: {
+          auto_activation_time: settings.auto_activation_time || '07:00',
+          auto_deactivation_time: settings.auto_deactivation_time || '20:00'
+        }
+      });
+    } catch (err) {
+      console.error('[Admin] Get working hours error:', err);
+      return res.status(500).json({ success: false, message: 'Failed to fetch working hours.' });
+    }
+  },
+
+  async updateWorkingHours(req, res) {
+    try {
+      const { auto_activation_time, auto_deactivation_time } = req.body;
+      if (!auto_activation_time || !auto_deactivation_time) {
+        return res.status(400).json({ success: false, message: 'Activation and deactivation times are required.' });
+      }
+
+      const timeRegex = /^([0-9]|0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$/;
+      let startNormalized = auto_activation_time;
+      let endNormalized = auto_deactivation_time;
+
+      if (!timeRegex.test(startNormalized) || !timeRegex.test(endNormalized)) {
+        return res.status(400).json({ success: false, message: 'Invalid time format. Use HH:MM.' });
+      }
+
+      if (startNormalized.split(':')[0].length === 1) startNormalized = '0' + startNormalized;
+      if (endNormalized.split(':')[0].length === 1) endNormalized = '0' + endNormalized;
+
+      await db.query(
+        'INSERT INTO system_settings (setting_key, setting_value) VALUES ("auto_activation_time", ?) ON DUPLICATE KEY UPDATE setting_value = ?',
+        [startNormalized, startNormalized]
+      );
+
+      await db.query(
+        'INSERT INTO system_settings (setting_key, setting_value) VALUES ("auto_deactivation_time", ?) ON DUPLICATE KEY UPDATE setting_value = ?',
+        [endNormalized, endNormalized]
+      );
+
+      // Trigger scheduler update immediately
+      const scheduler = require('../utils/scheduler');
+      scheduler.checkAndProcessSchedules();
+
+      return res.json({
+        success: true,
+        message: 'Working hours updated successfully.'
+      });
+    } catch (err) {
+      console.error('[Admin] Update working hours error:', err);
+      return res.status(500).json({ success: false, message: 'Failed to update working hours.' });
     }
   }
 };

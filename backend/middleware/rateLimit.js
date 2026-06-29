@@ -40,28 +40,10 @@ const rateLimit = (identifier, options = getRateLimit()) => {
 
 /**
  * Login Rate Limiter Middleware
- * Strict rate limiting for authentication
+ * Login lockout has been intentionally disabled.
+ * Users may retry immediately on failed credentials.
  */
 const loginLimiter = (req, res, next) => {
-  const identifier = `login:${req.ip}:${req.body?.email || 'unknown'}`;
-  const limit = rateLimit(identifier, {
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    maxRequests: 5 // 5 attempts max
-  });
-
-  res.setHeader('RateLimit-Limit', limit.maxRequests || 5);
-  res.setHeader('RateLimit-Remaining', Math.max(0, limit.remaining || 0));
-  res.setHeader('RateLimit-Reset', new Date(limit.resetTime).toISOString());
-
-  if (!limit.allowed) {
-    const resetTime = new Date(limit.resetTime).toISOString();
-    return res.status(429).json({
-      success: false,
-      message: `Too many login attempts. Please try again after ${new Date(limit.resetTime).toLocaleTimeString()}.`,
-      retryAfter: Math.ceil((limit.resetTime - Date.now()) / 1000)
-    });
-  }
-
   next();
 };
 

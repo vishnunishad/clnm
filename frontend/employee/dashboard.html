@@ -10,6 +10,43 @@
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
   <link rel="stylesheet" href="/css/styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    .chart-layout {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 32px;
+      align-items: center;
+    }
+    @media (max-width: 768px) {
+      .chart-layout {
+        grid-template-columns: 1fr;
+        gap: 20px;
+      }
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: var(--bg-body);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      transition: all 0.2s ease;
+    }
+    .legend-item:hover {
+      background: var(--bg-card-hover);
+      transform: translateX(4px);
+    }
+    .legend-color-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-right: 8px;
+      display: inline-block;
+    }
+  </style>
 </head>
 <body>
 <div class="app-layout">
@@ -25,7 +62,12 @@
         <div class="nav-section-title">Main</div>
         <a href="/employee/dashboard.html" class="nav-item active"><span class="nav-icon emoji-sm">📊</span> Dashboard</a>
         <a href="/employee/add-customer.html" class="nav-item"><span class="nav-icon emoji-sm">➕</span> Add Customer</a>
+        <a href="/employee/my-customers.html" class="nav-item"><span class="nav-icon emoji-sm">👥</span> My Customers</a>
         <a href="/employee/loans.html" class="nav-item"><span class="nav-icon emoji-sm">💼</span> My Loans</a>
+        <a href="/employee/emi-calculator.html" class="nav-item"><span class="nav-icon emoji-sm">🧮</span> EMI Calculator</a>
+        <a href="/employee/data-excel.html" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/></svg></span> My Assigned Data</a>
+        <a href="/employee/apr.html" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span> APR</a>
+
       </div>
     </nav>
     <div class="sidebar-footer">
@@ -44,44 +86,111 @@
     <div class="topbar">
       <button class="mobile-menu-btn" onclick="toggleMobileSidebar()" title="Toggle menu">Menu</button>
       <div class="topbar-title"><h2><span class="emoji">📊</span>My Dashboard</h2><p id="greeting">Welcome back!</p></div>
-      <div class="topbar-actions">
-        <a href="/employee/add-customer.html" class="btn btn-primary btn-sm"><span class="emoji-sm">➕</span>Add Customer</a>
-      </div>
     </div>
 
+
     <div class="page-content">
+      <!-- Filters bar -->
+      <div class="filters-bar">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="emoji-sm">📅</span>
+          <select id="period-filter" onchange="updateDashboardView()">
+            <option value="">All Time</option>
+            <option value="week">This Week</option>
+            <option value="month">This Month</option>
+            <option value="year">This Year</option>
+            <option value="custom">Custom Date Range</option>
+          </select>
+        </div>
+        
+        <div id="custom-date-container" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;">
+          <input type="date" id="start-date" onchange="updateDashboardView()" />
+          <span style="color:var(--text-secondary);font-size:13px;">to</span>
+          <input type="date" id="end-date" onchange="updateDashboardView()" />
+        </div>
+
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="emoji-sm">📍</span>
+          <select id="area-filter" onchange="updateDashboardView()">
+            <option value="">All Areas</option>
+          </select>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="emoji-sm">💼</span>
+          <select id="status-filter" onchange="updateDashboardView()">
+            <option value="">All Statuses</option>
+            <option value="Pending">Pending</option>
+            <option value="Under Review">Under Review</option>
+            <option value="Documents Pending">Documents Pending</option>
+            <option value="Approved">Approved</option>
+            <option value="Rejected">Rejected</option>
+            <option value="Loan Disbursed">Loan Disbursed</option>
+            <option value="Cancelled">Cancelled</option>
+            <option value="Hold">Hold</option>
+            <option value="ABND">ABND (Abandoned)</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+      </div>
+
       <div class="stats-grid">
-        <a href="/employee/add-customer.html" style="text-decoration:none;color:inherit">
-          <div class="stat-card" role="button">
+        <a href="/employee/my-customers.html" style="text-decoration:none;color:inherit" title="View all my customers" aria-label="My Customers — click to view customer list">
+          <div class="stat-card" role="button" tabindex="0">
             <div class="stat-icon">👥</div>
             <div class="stat-value" id="stat-customers">—</div>
             <div class="stat-label"><span class="emoji-sm">👥</span>My Customers</div>
           </div>
         </a>
 
-        <a href="/employee/loans.html" style="text-decoration:none;color:inherit">
-          <div class="stat-card" role="button">
+        <a href="/employee/loans.html" style="text-decoration:none;color:inherit" title="View all loan applications" aria-label="Total Loans — click to view all loans">
+          <div class="stat-card" role="button" tabindex="0">
             <div class="stat-icon">💼</div>
             <div class="stat-value" id="stat-loans">—</div>
             <div class="stat-label"><span class="emoji-sm">💼</span>Total Loans</div>
           </div>
         </a>
 
-        <a href="/employee/loans.html?status=pending" style="text-decoration:none;color:inherit">
-          <div class="stat-card" role="button">
+        <a href="/employee/loans.html?status=pending" style="text-decoration:none;color:inherit" title="View pending loan applications" aria-label="Pending Loans — click to filter by Pending status">
+          <div class="stat-card" role="button" tabindex="0">
             <div class="stat-icon">⏳</div>
             <div class="stat-value" id="stat-pending">—</div>
             <div class="stat-label"><span class="emoji-sm">⏳</span>Pending</div>
           </div>
         </a>
 
-        <a href="/employee/loans.html?status=approved" style="text-decoration:none;color:inherit">
-          <div class="stat-card" role="button">
+        <a href="/employee/loans.html?status=approved" style="text-decoration:none;color:inherit" title="View approved loan applications" aria-label="Approved Loans — click to filter by Approved status">
+          <div class="stat-card" role="button" tabindex="0">
             <div class="stat-icon">✅</div>
             <div class="stat-value" id="stat-approved">—</div>
             <div class="stat-label"><span class="emoji-sm">✅</span>Approved</div>
           </div>
         </a>
+      </div>
+
+      <!-- Pie Chart Card -->
+      <div class="card" style="margin-bottom: 28px; padding: 24px;">
+        <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:16px; margin-bottom: 20px;">
+          <h3 style="margin:0;"><span class="emoji-sm">📊</span>Loan Applications Status Distribution</h3>
+          <span class="badge badge-employee" id="chart-total-badge" style="font-size:12px; font-weight:600; padding:4px 8px;">0 applications</span>
+        </div>
+        
+        <div class="chart-layout">
+          <div class="chart-container" style="position: relative; min-height: 250px; display: flex; align-items: center; justify-content: center;">
+            <canvas id="loan-pie-chart"></canvas>
+            <div id="no-data-msg" style="display: none; text-align: center; color: var(--text-secondary); font-size: 14px;">
+              <span style="font-size: 36px; display: block; margin-bottom: 8px;">📊</span>
+              No loan applications found matching the selected criteria.
+            </div>
+          </div>
+          
+          <div>
+            <h4 style="margin: 0 0 16px; font-size: 13px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Status Breakdown</h4>
+            <div id="legend-container" style="display: flex; flex-direction: column; gap: 10px;">
+              <!-- Dynamic legend rows -->
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Quick actions -->
@@ -102,28 +211,6 @@
         </a>
       </div>
 
-      <div class="content-grid">
-        <!-- Recent Loans -->
-        <div class="card">
-          <div class="card-header"><h3><span class="emoji-sm">🕒</span>Recent Loans</h3><a href="/employee/loans.html" class="btn btn-secondary btn-sm">View All</a></div>
-          <div class="table-wrapper">
-            <table>
-              <thead><tr><th>Customer</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
-              <tbody id="recent-loans"><tr><td colspan="4" class="text-center text-muted">Loading...</td></tr></tbody>
-            </table>
-          </div>
-        </div>
-        <!-- Recent Customers -->
-        <div class="card">
-          <div class="card-header"><h3><span class="emoji-sm">📋</span>Recent Customers</h3><a href="/employee/add-customer.html" class="btn btn-secondary btn-sm">Add New</a></div>
-          <div class="table-wrapper">
-            <table>
-              <thead><tr><th>Name</th><th>Phone</th><th>Area</th></tr></thead>
-              <tbody id="recent-customers"><tr><td colspan="3" class="text-center text-muted">Loading...</td></tr></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
     </div>
   </main>
 </div>
@@ -159,6 +246,10 @@
 <script>
   let customerModalListenerAttached = false;
   const user = requireRole('employee');
+  let allLoans = [];
+  let allCustomers = [];
+  let loanChart = null;
+
   if (user) {
     renderSidebarUser();
     document.getElementById('greeting').textContent = `Welcome back, ${user.name}!`;
@@ -166,24 +257,316 @@
   }
 
   async function loadDashboard() {
-    const res = await api.get('/employee/dashboard');
-    if (!res?.ok) return;
-    const d = res.data.data;
+    // Show placeholder/loading state
+    document.getElementById('stat-customers').textContent = 'Loading...';
+    document.getElementById('stat-loans').textContent = 'Loading...';
+    document.getElementById('stat-pending').textContent = 'Loading...';
+    document.getElementById('stat-approved').textContent = 'Loading...';
 
-    document.getElementById('stat-customers').textContent = d.totalCustomers;
-    document.getElementById('stat-loans').textContent = d.totalLoans;
-    document.getElementById('stat-pending').textContent = d.pending;
-    document.getElementById('stat-approved').textContent = d.approved;
+    const [loansRes, customersRes] = await Promise.all([
+      api.get('/employee/loans'),
+      api.get('/employee/customers')
+    ]);
 
-    const loansTbody = document.getElementById('recent-loans');
-    loansTbody.innerHTML = d.recentLoans.length
-      ? d.recentLoans.map(l => `<tr><td>${l.customer_name}</td><td>${formatCurrency(l.amount)}</td><td>${statusBadge(l.status)}</td><td>${formatDate(l.created_at)}</td></tr>`).join('')
-      : '<tr><td colspan="4" class="text-center text-muted">No loans yet.</td></tr>';
+    if (loansRes?.ok) {
+      allLoans = loansRes.data.data || [];
+    }
+    if (customersRes?.ok) {
+      allCustomers = customersRes.data.data || [];
+    }
 
-    const custTbody = document.getElementById('recent-customers');
-    custTbody.innerHTML = d.recentCustomers.length
-      ? d.recentCustomers.map(c => `<tr><td><span style="cursor:pointer;color:var(--color-primary);text-decoration:underline;" onclick="openCustomerDetail(${c.id})">${c.name}</span></td><td>${c.phone}</td><td>${c.area}</td></tr>`).join('')
-      : '<tr><td colspan="3" class="text-center text-muted">No customers yet.</td></tr>';
+    populateAreaFilter();
+    updateDashboardView();
+    setupThemeObserver();
+  }
+
+  function populateAreaFilter() {
+    const areaSelect = document.getElementById('area-filter');
+    const currentVal = areaSelect.value;
+    areaSelect.innerHTML = '<option value="">All Areas</option>';
+    
+    const areas = [...new Set(allCustomers.map(c => c.area).filter(Boolean))].sort();
+    areas.forEach(area => {
+      const opt = document.createElement('option');
+      opt.value = area;
+      opt.textContent = area;
+      areaSelect.appendChild(opt);
+    });
+    
+    if (areas.includes(currentVal)) {
+      areaSelect.value = currentVal;
+    }
+  }
+
+  function updateDashboardView() {
+    const period = document.getElementById('period-filter').value;
+    const startDateVal = document.getElementById('start-date').value;
+    const endDateVal = document.getElementById('end-date').value;
+    const area = document.getElementById('area-filter').value;
+    const status = document.getElementById('status-filter').value;
+
+    // Toggle custom date range fields visibility
+    const customDateContainer = document.getElementById('custom-date-container');
+    if (period === 'custom') {
+      customDateContainer.style.display = 'flex';
+    } else {
+      customDateContainer.style.display = 'none';
+    }
+
+    // Filter logic
+    let filteredLoans = [...allLoans];
+    let filteredCustomers = [...allCustomers];
+
+    // 1. Time / Period filter
+    const now = new Date();
+    let startDate = null;
+    let endDate = null;
+
+    if (period === 'week') {
+      startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    } else if (period === 'month') {
+      startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    } else if (period === 'year') {
+      startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+    } else if (period === 'custom') {
+      if (startDateVal) {
+        startDate = new Date(startDateVal);
+        startDate.setHours(0, 0, 0, 0);
+      }
+      if (endDateVal) {
+        endDate = new Date(endDateVal);
+        endDate.setHours(23, 59, 59, 999);
+      }
+    }
+
+    if (startDate) {
+      filteredLoans = filteredLoans.filter(l => new Date(l.created_at) >= startDate);
+      filteredCustomers = filteredCustomers.filter(c => new Date(c.created_at) >= startDate);
+    }
+    if (endDate) {
+      filteredLoans = filteredLoans.filter(l => new Date(l.created_at) <= endDate);
+      filteredCustomers = filteredCustomers.filter(c => new Date(c.created_at) <= endDate);
+    }
+
+    // 2. Area Filter
+    if (area) {
+      filteredLoans = filteredLoans.filter(l => l.area === area);
+      filteredCustomers = filteredCustomers.filter(c => c.area === area);
+    }
+
+    // 3. Status Filter
+    if (status) {
+      filteredLoans = filteredLoans.filter(l => l.status === status);
+    }
+
+    // Update Stats Cards
+    document.getElementById('stat-customers').textContent = filteredCustomers.length;
+    document.getElementById('stat-loans').textContent = filteredLoans.length;
+    document.getElementById('stat-pending').textContent = filteredLoans.filter(l => l.status === 'Pending').length;
+    document.getElementById('stat-approved').textContent = filteredLoans.filter(l => l.status === 'Approved').length;
+
+    // Render/update Pie Chart
+    renderPieChart(filteredLoans);
+  }
+
+  function getCardBgColor() {
+    return getComputedStyle(document.documentElement).getPropertyValue('--bg-card').trim() || '#ffffff';
+  }
+
+  function renderPieChart(loans) {
+    const countsMap = {
+      'Pending': 0,
+      'Under Review': 0,
+      'Documents Pending': 0,
+      'Approved': 0,
+      'Rejected': 0,
+      'Loan Disbursed': 0,
+      'Cancelled': 0,
+      'Hold': 0,
+      'ABND': 0,
+      'Other': 0
+    };
+
+    loans.forEach(l => {
+      const s = l.status;
+      if (countsMap[s] !== undefined) {
+        countsMap[s]++;
+      } else {
+        countsMap['Other']++;
+      }
+    });
+
+    const total = loans.length;
+    const canvas = document.getElementById('loan-pie-chart');
+    const noData = document.getElementById('no-data-msg');
+    const legendContainer = document.getElementById('legend-container');
+    const totalBadge = document.getElementById('chart-total-badge');
+
+    totalBadge.textContent = `${total} application${total === 1 ? '' : 's'}`;
+
+    if (total === 0) {
+      if (loanChart) {
+        loanChart.destroy();
+        loanChart = null;
+      }
+      canvas.style.display = 'none';
+      noData.style.display = 'block';
+      legendContainer.innerHTML = '<p style="color:var(--text-muted);font-size:13px;text-align:center;padding:20px 0;">No status data available.</p>';
+      return;
+    }
+
+    canvas.style.display = 'block';
+    noData.style.display = 'none';
+
+    const statusMeta = {
+      'Pending': { label: 'Pending', color: '#f59e0b', hoverColor: '#d97706' },
+      'Under Review': { label: 'Under Review', color: '#6366f1', hoverColor: '#4f46e5' },
+      'Documents Pending': { label: 'Documents Pending', color: '#06b6d4', hoverColor: '#0891b2' },
+      'Approved': { label: 'Approved', color: '#10b981', hoverColor: '#059669' },
+      'Rejected': { label: 'Rejected', color: '#ef4444', hoverColor: '#dc2626' },
+      'Loan Disbursed': { label: 'Loan Disbursed', color: '#8b5cf6', hoverColor: '#7c3aed' },
+      'Cancelled': { label: 'Cancelled', color: '#f43f5e', hoverColor: '#e11d48' },
+      'Hold': { label: 'Hold', color: '#ea580c', hoverColor: '#c2410c' },
+      'ABND': { label: 'ABND (Abandoned)', color: '#6b7280', hoverColor: '#4b5563' },
+      'Other': { label: 'Other', color: '#0ea5e9', hoverColor: '#0284c7' }
+    };
+
+    const labels = [];
+    const dataVals = [];
+    const bgColors = [];
+    const hoverBgColors = [];
+    const legendRows = [];
+
+    const statusOrder = [
+      'Pending',
+      'Under Review',
+      'Documents Pending',
+      'Approved',
+      'Rejected',
+      'Loan Disbursed',
+      'Cancelled',
+      'Hold',
+      'ABND',
+      'Other'
+    ];
+
+    statusOrder.forEach(statusKey => {
+      const count = countsMap[statusKey];
+      const percentage = total > 0 ? ((count / total) * 100).toFixed(1) : '0.0';
+      const meta = statusMeta[statusKey];
+
+      legendRows.push(`
+        <div class="legend-item">
+          <div style="display:flex;align-items:center;">
+            <span class="legend-color-dot" style="background:${meta.color};"></span>
+            <span style="font-weight:500;">${meta.label}</span>
+          </div>
+          <div style="text-align:right;">
+            <span style="font-weight:600;margin-right:6px;">${count}</span>
+            <span style="color:var(--text-secondary);font-size:12px;">(${percentage}%)</span>
+          </div>
+        </div>
+      `);
+
+      labels.push(meta.label);
+      dataVals.push(count);
+      bgColors.push(meta.color);
+      hoverBgColors.push(meta.hoverColor);
+    });
+
+    legendContainer.innerHTML = legendRows.join('');
+
+    const pieLabelsPlugin = {
+      id: 'pieLabels',
+      afterDatasetsDraw(chart) {
+        const { ctx } = chart;
+        ctx.save();
+        chart.data.datasets.forEach((dataset, i) => {
+          const meta = chart.getDatasetMeta(i);
+          meta.data.forEach((element, index) => {
+            const val = dataset.data[index];
+            if (!val || val === 0) return;
+            const sum = dataset.data.reduce((a, b) => a + b, 0);
+            const percentage = ((val / sum) * 100).toFixed(1) + '%';
+
+            let pos;
+            if (typeof element.tooltipPosition === 'function') {
+              pos = element.tooltipPosition(true);
+            } else {
+              pos = { x: element.x, y: element.y };
+            }
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 11px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            const angle = element.endAngle - element.startAngle;
+            if (angle > 0.2) {
+              ctx.fillText(percentage, pos.x, pos.y);
+            }
+          });
+        });
+        ctx.restore();
+      }
+    };
+
+    if (loanChart) {
+      loanChart.data.labels = labels;
+      loanChart.data.datasets[0].data = dataVals;
+      loanChart.data.datasets[0].backgroundColor = bgColors;
+      loanChart.data.datasets[0].hoverBackgroundColor = hoverBgColors;
+      loanChart.data.datasets[0].borderColor = getCardBgColor();
+      loanChart.update();
+    } else {
+      loanChart = new Chart(canvas, {
+        type: 'pie',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: dataVals,
+            backgroundColor: bgColors,
+            hoverBackgroundColor: hoverBgColors,
+            borderWidth: 1.5,
+            borderColor: getCardBgColor()
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  const label = context.label || '';
+                  const value = context.parsed || 0;
+                  const dataset = context.dataset;
+                  const sum = dataset.data.reduce((a, b) => a + b, 0);
+                  const percentage = ((value / sum) * 100).toFixed(1) + '%';
+                  return ` ${label}: ${value} application${value === 1 ? '' : 's'} (${percentage})`;
+                }
+              }
+            }
+          }
+        },
+        plugins: [pieLabelsPlugin]
+      });
+    }
+  }
+
+  let themeObserver = null;
+  function setupThemeObserver() {
+    if (themeObserver) return;
+    themeObserver = new MutationObserver(() => {
+      if (loanChart) {
+        loanChart.data.datasets[0].borderColor = getCardBgColor();
+        loanChart.update();
+      }
+    });
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
   }
 
   function openCustomerModal() {
@@ -317,6 +700,14 @@
           <div>
             <label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;font-weight:600;">Area</label>
             <p style="font-size:14px;margin-top:4px;">${c.area || '—'}</p>
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;font-weight:600;">Net Salary</label>
+            <p style="font-size:14px;margin-top:4px;">${c.net_salary !== undefined && c.net_salary !== null ? '₹' + Number(c.net_salary).toLocaleString('en-IN') : '—'}</p>
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;font-weight:600;">Total Obligation</label>
+            <p style="font-size:14px;margin-top:4px;">${c.total_obligation !== undefined && c.total_obligation !== null ? '₹' + Number(c.total_obligation).toLocaleString('en-IN') : '—'}</p>
           </div>
           <div style="grid-column: span 2;">
             <label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;font-weight:600;">Address</label>

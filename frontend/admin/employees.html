@@ -5,28 +5,1209 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CLN Lending Suite — Employees</title>
   <meta name="theme-color" content="#0f2747" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
   <link rel="stylesheet" href="/css/styles.css" />
+  <style>
+    /* Scoped styles for Employee Profile modal */
+    #profile-modal {
+      --profile-panel-height: clamp(300px, 48vh, 390px);
+    }
+    #profile-modal .modal {
+      max-width: min(1120px, calc(100vw - 28px));
+      width: min(1120px, 96vw);
+      max-height: calc(100vh - 32px);
+      padding: 0;
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-medium);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    @supports (height: 100dvh) {
+      #profile-modal .modal {
+        max-height: calc(100dvh - 32px);
+      }
+    }
+    #profile-modal .modal-header {
+      margin: 0;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.72), rgba(236, 241, 248, 0.58));
+      flex-shrink: 0;
+    }
+    :root[data-theme='dark'] #profile-modal .modal-header {
+      background: linear-gradient(135deg, rgba(139, 180, 255, 0.08), rgba(93, 212, 199, 0.04));
+    }
+    #profile-modal .profile-kicker {
+      color: var(--text-muted);
+      font-size: 10px;
+      font-weight: 800;
+      line-height: 1.2;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+    #profile-modal .modal-header h3 {
+      font-size: 18px;
+      line-height: 1.2;
+    }
+    #profile-modal .profile-close-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 7px 10px;
+      background: var(--bg-card);
+      color: var(--text-secondary);
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1;
+      box-shadow: var(--shadow-soft);
+    }
+    #profile-modal .profile-close-btn:hover {
+      border-color: rgba(180, 69, 69, 0.32);
+      background: rgba(180, 69, 69, 0.08);
+      color: var(--danger);
+    }
+    #profile-modal .profile-close-btn svg {
+      width: 14px;
+      height: 14px;
+    }
+    #profile-modal .profile-icon-sprite {
+      display: none;
+    }
+    #profile-modal .profile-icon {
+      width: 16px;
+      height: 16px;
+      display: block;
+      flex: 0 0 auto;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    #profile-modal .profile-modal-body {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-height: 0;
+      overflow: hidden;
+      padding: 14px 18px 16px;
+    }
+    #profile-modal #profile-modal-alert {
+      margin: 0;
+      flex-shrink: 0;
+    }
+    #profile-modal .profile-summary {
+      display: grid;
+      grid-template-columns: minmax(248px, 1.05fr) minmax(0, 1.95fr);
+      gap: 12px;
+      align-items: stretch;
+      flex-shrink: 0;
+    }
+    #profile-modal .profile-identity,
+    #profile-modal .profile-meta-item,
+    #profile-modal .info-item,
+    #profile-modal .profile-tab-panel,
+    #profile-modal .profile-tabs,
+    #profile-modal .doc-preview-card,
+    #profile-modal .verification-card,
+    #profile-modal .log-list {
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.56);
+    }
+    :root[data-theme='dark'] #profile-modal .profile-identity,
+    :root[data-theme='dark'] #profile-modal .profile-meta-item,
+    :root[data-theme='dark'] #profile-modal .info-item,
+    :root[data-theme='dark'] #profile-modal .profile-tab-panel,
+    :root[data-theme='dark'] #profile-modal .profile-tabs,
+    :root[data-theme='dark'] #profile-modal .doc-preview-card,
+    :root[data-theme='dark'] #profile-modal .verification-card,
+    :root[data-theme='dark'] #profile-modal .log-list {
+      background: rgba(255, 255, 255, 0.025);
+      border-color: rgba(151, 176, 210, 0.15);
+    }
+    #profile-modal .profile-identity {
+      display: grid;
+      grid-template-columns: 72px minmax(0, 1fr);
+      gap: 12px;
+      align-items: center;
+      border-radius: var(--radius);
+      padding: 12px;
+      min-width: 0;
+    }
+    #profile-modal .profile-avatar-large {
+      width: 72px;
+      height: 72px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      font-weight: 800;
+      color: #fff;
+      box-shadow: var(--shadow-soft);
+      overflow: hidden;
+    }
+    #profile-modal .profile-avatar-large img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    #profile-modal .profile-identity-main {
+      min-width: 0;
+    }
+    #profile-modal #prof-name {
+      margin: 0 0 6px;
+      color: var(--text-primary);
+      font-size: 18px;
+      font-weight: 800;
+      line-height: 1.2;
+      overflow-wrap: anywhere;
+    }
+    #profile-modal .profile-role-row {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    #profile-modal .profile-designation {
+      color: var(--success);
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1.2;
+    }
+    #profile-modal .profile-meta-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+    #profile-modal .profile-meta-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      border-radius: var(--radius-sm);
+      padding: 9px 10px;
+    }
+    #profile-modal .profile-meta-item .profile-icon {
+      color: var(--accent-secondary);
+    }
+    #profile-modal .profile-meta-text {
+      min-width: 0;
+    }
+    #profile-modal .profile-meta-text label,
+    #profile-modal .info-item label,
+    #profile-modal .doc-preview-title,
+    #profile-modal .log-section-title {
+      display: block;
+      color: var(--text-muted);
+      font-size: 10px;
+      font-weight: 800;
+      line-height: 1.2;
+      text-transform: uppercase;
+      margin-bottom: 3px;
+    }
+    #profile-modal .profile-meta-text span {
+      display: block;
+      color: var(--text-primary);
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.25;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    #profile-modal #prof-email {
+      word-break: break-all;
+    }
+    #profile-modal .profile-content-shell {
+      display: grid;
+      grid-template-columns: 210px minmax(0, 1fr);
+      gap: 12px;
+      min-height: 0;
+    }
+    #profile-modal .profile-tabs {
+      display: grid;
+      align-content: start;
+      gap: 8px;
+      border-radius: var(--radius);
+      padding: 8px;
+    }
+    #profile-modal .profile-tab-btn {
+      width: 100%;
+      min-height: 38px;
+      border: 1px solid transparent;
+      border-radius: var(--radius-sm);
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      justify-content: flex-start;
+      padding: 9px 10px;
+      text-align: left;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 800;
+      transition: all 0.2s ease;
+    }
+    #profile-modal .profile-tab-btn .profile-icon {
+      color: var(--accent-secondary);
+    }
+    #profile-modal .profile-tab-btn:hover {
+      border-color: var(--border-strong);
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+    #profile-modal .profile-tab-btn.active {
+      border-color: rgba(15, 139, 113, 0.26);
+      background: linear-gradient(135deg, rgba(15, 139, 113, 0.12), rgba(47, 111, 237, 0.07));
+      color: var(--text-primary);
+      box-shadow: inset 3px 0 0 var(--success);
+    }
+    #profile-modal .profile-panel-shell {
+      min-width: 0;
+      min-height: 0;
+    }
+    #profile-modal .profile-tab-panel {
+      display: none;
+      min-height: var(--profile-panel-height);
+      max-height: var(--profile-panel-height);
+      overflow: hidden;
+      border-radius: var(--radius);
+      padding: 12px;
+    }
+    #profile-modal .profile-tab-panel.active {
+      display: block;
+      animation: profileFadeUp 0.22s ease;
+    }
+    @keyframes profileFadeUp {
+      from { opacity: 0; transform: translateY(5px); }
+      to { opacity: 1; transform: none; }
+    }
+    #profile-modal .info-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+    }
+    #profile-modal .info-grid-2 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    #profile-modal .info-item {
+      min-width: 0;
+      min-height: 64px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 9px 10px;
+    }
+    #profile-modal .info-item.profile-span-2 {
+      grid-column: span 2;
+    }
+    #profile-modal .info-item.profile-span-4 {
+      grid-column: span 4;
+    }
+    #profile-modal .info-item span {
+      color: var(--text-primary);
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.35;
+      overflow-wrap: anywhere;
+    }
+    #profile-modal .doc-preview-container {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin: 8px 0 10px;
+    }
+    #profile-modal .doc-preview-card {
+      border-radius: var(--radius-sm);
+      min-width: 0;
+      min-height: 122px;
+      padding: 9px;
+      text-align: center;
+    }
+    #profile-modal .doc-preview-card img {
+      width: 100%;
+      max-width: 100%;
+      height: 74px;
+      object-fit: contain;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--bg-primary);
+      margin-bottom: 7px;
+    }
+    #profile-modal .pdf-placeholder {
+      height: 74px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--accent);
+      background: var(--accent-soft);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 7px;
+    }
+    #profile-modal .pdf-placeholder .profile-icon {
+      width: 30px;
+      height: 30px;
+    }
+    #profile-modal .doc-empty {
+      min-height: 74px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 700;
+      background: var(--bg-secondary);
+      border: 1px dashed var(--border-strong);
+      border-radius: 8px;
+    }
+    #profile-modal .doc-link {
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 800;
+      text-decoration: none;
+    }
+    #profile-modal .doc-link:hover {
+      text-decoration: underline;
+    }
+    #profile-modal .verification-card {
+      border-radius: var(--radius-sm);
+      display: grid;
+      grid-template-columns: 178px minmax(0, 1fr) auto;
+      gap: 9px;
+      align-items: end;
+      padding: 10px;
+    }
+    #profile-modal .verification-title {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--text-primary);
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1.2;
+    }
+    #profile-modal .verification-title .profile-icon {
+      color: var(--accent-secondary);
+    }
+    #profile-modal .verification-card .form-group {
+      margin: 0;
+    }
+    #profile-modal .verification-card .form-group label {
+      font-size: 10px;
+      margin-bottom: 4px;
+    }
+    #profile-modal .verification-card .form-control {
+      min-height: 38px;
+      padding: 8px 10px;
+      font-size: 12px;
+      border-radius: 8px;
+    }
+    #profile-modal #prof-kyc-remarks {
+      height: 38px;
+      min-height: 38px;
+      resize: vertical;
+    }
+    #profile-modal .verification-actions {
+      display: flex;
+      margin: 0;
+    }
+    #profile-modal .verification-actions .btn {
+      white-space: nowrap;
+    }
+    #profile-modal .log-section-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+    #profile-modal .log-list {
+      max-height: calc(var(--profile-panel-height) - 64px);
+      min-height: calc(var(--profile-panel-height) - 64px);
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      border-radius: var(--radius-sm);
+      padding: 8px;
+    }
+    #profile-modal .log-item {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      padding: 8px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      font-size: 12px;
+      line-height: 1.3;
+    }
+    #profile-modal .log-item strong {
+      color: var(--text-primary);
+      font-weight: 800;
+    }
+    #profile-modal .log-meta {
+      color: var(--text-muted);
+      font-size: 10px;
+      line-height: 1.35;
+    }
+    @media (max-width: 980px) {
+      #profile-modal .profile-modal-body {
+        overflow-y: auto;
+      }
+      #profile-modal .profile-summary {
+        grid-template-columns: 1fr;
+      }
+      #profile-modal .profile-meta-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      #profile-modal .profile-content-shell {
+        grid-template-columns: 1fr;
+      }
+      #profile-modal .profile-tabs {
+        display: flex;
+        overflow-x: auto;
+      }
+      #profile-modal .profile-tab-btn {
+        min-width: max-content;
+      }
+      #profile-modal .profile-tab-panel {
+        min-height: 0;
+        max-height: none;
+        overflow: visible;
+      }
+      #profile-modal .log-list {
+        min-height: 180px;
+        max-height: 180px;
+      }
+    }
+    @media (max-width: 650px) {
+      #profile-modal .modal {
+        width: calc(100vw - 18px);
+        max-height: calc(100vh - 18px);
+      }
+      #profile-modal .profile-tabs {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        overflow: visible;
+      }
+      #profile-modal .profile-tab-btn {
+        min-width: 0;
+        gap: 7px;
+        padding: 9px 8px;
+        white-space: normal;
+      }
+      #profile-modal .profile-tab-btn span {
+        line-height: 1.2;
+      }
+      #profile-modal .profile-meta-grid,
+      #profile-modal .info-grid,
+      #profile-modal .info-grid-2,
+      #profile-modal .doc-preview-container,
+      #profile-modal .verification-card,
+      #profile-modal .log-section-grid {
+        grid-template-columns: 1fr;
+      }
+      #profile-modal .info-item.profile-span-2,
+      #profile-modal .info-item.profile-span-4 {
+        grid-column: auto;
+      }
+      #profile-modal .verification-title {
+        grid-column: auto;
+      }
+      #profile-modal .verification-actions .btn {
+        width: 100%;
+      }
+    }
+    @media (max-width: 480px) {
+      #profile-modal .modal-header {
+        padding: 12px;
+      }
+      #profile-modal .profile-modal-body {
+        padding: 12px;
+      }
+      #profile-modal .profile-identity {
+        grid-template-columns: 58px minmax(0, 1fr);
+        padding: 10px;
+      }
+      #profile-modal .profile-avatar-large {
+        width: 58px;
+        height: 58px;
+        border-radius: 14px;
+        font-size: 22px;
+      }
+      #profile-modal #prof-name {
+        font-size: 16px;
+      }
+      #profile-modal .profile-close-btn span {
+        display: none;
+      }
+      #profile-modal .profile-close-btn {
+        padding: 9px;
+      }
+    }
+
+    /* Scoped styles for Working Hours widget */
+    .working-hours-layout-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 24px;
+      align-items: stretch;
+    }
+    @media (max-width: 900px) {
+      .working-hours-layout-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    .settings-pane {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      background: rgba(255, 255, 255, 0.4);
+      padding: 24px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+    }
+    :root[data-theme='dark'] .settings-pane {
+      background: rgba(255, 255, 255, 0.02);
+    }
+    .time-pickers-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 480px) {
+      .time-pickers-row {
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+    }
+    .time-picker-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .time-picker-group label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+    }
+    .status-display-pane {
+      display: flex;
+      flex-direction: column;
+    }
+    .status-display-card {
+      flex: 1;
+      background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      box-shadow: var(--shadow-soft);
+      position: relative;
+      overflow: hidden;
+      min-height: 160px;
+    }
+    .status-display-card::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      right: -50%;
+      width: 150px;
+      height: 150px;
+      background: radial-gradient(circle, rgba(16, 185, 129, 0.08) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .status-display-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .pulse-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background-color: var(--success);
+      box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+      animation: pulseGreen 1.8s infinite;
+    }
+    .pulse-dot.inactive {
+      background-color: var(--danger);
+      box-shadow: 0 0 0 0 rgba(180, 69, 69, 0.7);
+      animation: pulseRed 1.8s infinite;
+    }
+    @keyframes pulseGreen {
+      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+      70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+    @keyframes pulseRed {
+      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(180, 69, 69, 0.7); }
+      70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(180, 69, 69, 0); }
+      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(180, 69, 69, 0); }
+    }
+    .status-text {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-primary);
+    }
+    .live-clock {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin-bottom: 2px;
+      font-feature-settings: "tnum";
+    }
+    .live-clock-meta {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+    .current-schedule-info {
+      margin-top: 14px;
+      padding: 6px 16px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 99px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-primary);
+      box-shadow: var(--shadow-soft);
+    }
+
+    /* Toolbar styling */
+    .toolbar-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      margin-bottom: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+      box-shadow: var(--shadow-soft);
+    }
+    @media (max-width: 768px) {
+      .toolbar-card {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 16px;
+      }
+    }
+    .toolbar-search-container {
+      position: relative;
+      flex: 1;
+    }
+    .search-field-icon {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      pointer-events: none;
+    }
+    .toolbar-search-input {
+      width: 100%;
+      height: 42px;
+      padding: 10px 16px 10px 42px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-size: 14px;
+      font-family: inherit;
+      transition: all 0.2s ease;
+    }
+    .toolbar-search-input:focus {
+      border-color: var(--accent);
+      background: var(--bg-card);
+      box-shadow: 0 0 0 3px rgba(15, 39, 71, 0.1);
+      outline: none;
+    }
+    .toolbar-filters-container {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    @media (max-width: 480px) {
+      .toolbar-filters-container {
+        flex-direction: column;
+        align-items: stretch;
+      }
+    }
+    .filter-dropdown-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .filter-dropdown-wrapper::after {
+      content: '';
+      position: absolute;
+      right: 13px;
+      top: 50%;
+      width: 7px;
+      height: 7px;
+      border-right: 2px solid var(--text-muted);
+      border-bottom: 2px solid var(--text-muted);
+      transform: translateY(-65%) rotate(45deg);
+      pointer-events: none;
+    }
+    .filter-dropdown-wrapper label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+    .toolbar-select {
+      height: 42px;
+      padding: 0 36px 0 16px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-size: 13px;
+      font-family: inherit;
+      font-weight: 500;
+      cursor: pointer;
+      appearance: none;
+      transition: all 0.2s ease;
+      min-width: 150px;
+    }
+    .toolbar-select:focus {
+      border-color: var(--accent);
+      background-color: var(--bg-card);
+      outline: none;
+    }
+
+    /* Table styling and row layouts */
+    .employee-table {
+      border-collapse: separate;
+      border-spacing: 0;
+      width: 100%;
+    }
+    .employee-table th {
+      padding: 14px 20px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+      letter-spacing: 0.5px;
+    }
+    .employee-table td {
+      padding: 16px 20px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    .employee-table tbody tr {
+      transition: all 0.2s ease;
+    }
+    .employee-table tbody tr:nth-child(even) {
+      background: rgba(243, 246, 251, 0.4);
+    }
+    :root[data-theme='dark'] .employee-table tbody tr:nth-child(even) {
+      background: rgba(255, 255, 255, 0.015);
+    }
+    .employee-table tbody tr:hover {
+      background: var(--table-row-hover) !important;
+    }
+
+    /* Actions Dropdown Menu */
+    .dropdown-container {
+      position: relative;
+      display: inline-block;
+    }
+    .btn-action-trigger {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      padding: 0;
+    }
+    .btn-action-trigger:hover,
+    .dropdown-container.open .btn-action-trigger {
+      background: var(--accent-soft);
+      border-color: var(--accent);
+      color: var(--accent);
+      box-shadow: var(--shadow-soft);
+    }
+    .action-dropdown-menu {
+      display: none;
+      position: absolute;
+      right: 0;
+      top: calc(100% + 4px);
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      box-shadow: var(--shadow-medium);
+      z-index: 100;
+      min-width: 180px;
+      padding: 6px 0;
+      animation: dropdownFadeIn 0.15s ease-out;
+    }
+    .dropdown-container.open .action-dropdown-menu {
+      display: block;
+    }
+    @keyframes dropdownFadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .action-dropdown-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      padding: 10px 14px;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 500;
+      text-align: left;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      font-family: inherit;
+    }
+    .action-dropdown-item:hover {
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+    .action-dropdown-item.danger:hover {
+      background: rgba(180, 69, 69, 0.08);
+      color: var(--danger);
+    }
+    .action-dropdown-item svg {
+      width: 16px;
+      height: 16px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2px;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      flex-shrink: 0;
+    }
+
+    /* Reset password modal */
+    #password-modal .modal {
+      max-width: 440px;
+      padding: 0;
+      overflow: hidden;
+    }
+    #password-modal .modal-header {
+      align-items: flex-start;
+      gap: 14px;
+      margin: 0;
+      padding: 20px 22px 16px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.76), rgba(236, 241, 248, 0.64));
+    }
+    :root[data-theme='dark'] #password-modal .modal-header {
+      background: linear-gradient(135deg, rgba(139, 180, 255, 0.09), rgba(93, 212, 199, 0.04));
+      border-bottom-color: rgba(151, 176, 210, 0.14);
+    }
+    #password-modal .password-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+    #password-modal .password-title-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+      color: #fff;
+      background: linear-gradient(135deg, var(--accent), #2563eb);
+      box-shadow: 0 10px 24px rgba(15, 39, 71, 0.22);
+    }
+    #password-modal .password-title-icon svg,
+    #password-modal .password-close-btn svg,
+    #password-modal .password-toggle svg {
+      width: 18px;
+      height: 18px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    #password-modal .password-kicker {
+      margin: 0 0 3px;
+      color: var(--text-muted);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      line-height: 1.2;
+      text-transform: uppercase;
+    }
+    #password-modal .modal-header h3 {
+      margin: 0;
+      color: var(--text-primary);
+      font-size: 19px;
+      font-weight: 800;
+      line-height: 1.18;
+    }
+    #password-modal .password-close-btn {
+      width: 34px;
+      height: 34px;
+      margin-top: 2px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--bg-card);
+      color: var(--text-secondary);
+      box-shadow: var(--shadow-soft);
+    }
+    #password-modal .password-close-btn:hover {
+      border-color: rgba(180, 69, 69, 0.32);
+      background: rgba(180, 69, 69, 0.08);
+      color: var(--danger);
+    }
+    #password-modal .password-modal-body {
+      padding: 20px 22px 22px;
+    }
+    #password-modal #password-modal-alert {
+      margin: 0 0 14px;
+    }
+    #password-modal #password-modal-alert:not(.show) {
+      display: none;
+      margin: 0;
+    }
+    #password-modal .password-employee-card {
+      display: grid;
+      grid-template-columns: 44px minmax(0, 1fr);
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 16px;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg-body);
+    }
+    :root[data-theme='dark'] #password-modal .password-employee-card {
+      background: rgba(255, 255, 255, 0.025);
+      border-color: rgba(151, 176, 210, 0.15);
+    }
+    #password-modal .password-employee-avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+      font-size: 17px;
+      font-weight: 800;
+      box-shadow: var(--shadow-soft);
+    }
+    #password-modal .password-employee-copy {
+      min-width: 0;
+    }
+    #password-modal .password-employee-copy label,
+    #password-modal .password-reset-field label {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--text-secondary);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      line-height: 1.2;
+      text-transform: uppercase;
+    }
+    #password-modal #password-employee-name {
+      height: auto;
+      padding: 0;
+      border: none;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+      color: var(--text-primary);
+      font-size: 15px;
+      font-weight: 800;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    #password-modal .password-reset-field {
+      margin-bottom: 0;
+    }
+    #password-modal .password-input-shell {
+      position: relative;
+    }
+    #password-modal .password-input-shell .form-control {
+      min-height: 46px;
+      padding-right: 48px;
+      border-radius: 12px;
+      font-weight: 600;
+    }
+    #password-modal .password-toggle {
+      position: absolute;
+      top: 50%;
+      right: 9px;
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      border: none;
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transform: translateY(-50%);
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+    #password-modal .password-toggle:hover,
+    #password-modal .password-toggle.visible {
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+    #password-modal .password-helper {
+      margin-top: 8px;
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 600;
+    }
+    #password-modal .password-actions {
+      display: grid;
+      grid-template-columns: 1fr 1.25fr;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    #password-modal .password-actions .btn {
+      width: auto;
+      min-height: 42px;
+      border-radius: 11px;
+    }
+    @media (max-width: 480px) {
+      #password-modal .modal {
+        max-width: calc(100vw - 28px);
+      }
+      #password-modal .modal-header,
+      #password-modal .password-modal-body {
+        padding-left: 16px;
+        padding-right: 16px;
+      }
+      #password-modal .password-actions {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Dark theme badge overrides */
+    :root[data-theme='dark'] .badge-active {
+      background: rgba(70, 201, 168, 0.12);
+      color: #46c9a8;
+      border-color: rgba(70, 201, 168, 0.24);
+      box-shadow: none;
+    }
+    :root[data-theme='dark'] .badge-inactive {
+      background: rgba(242, 140, 140, 0.12);
+      color: #f28c8c;
+      border-color: rgba(242, 140, 140, 0.24);
+      box-shadow: none;
+    }
+    :root[data-theme='dark'] .badge-override {
+      background: rgba(168, 85, 247, 0.12);
+      color: #c084fc;
+      border-color: rgba(168, 85, 247, 0.24);
+      box-shadow: none;
+    }
+    :root[data-theme='dark'] .badge-auto-deactivated {
+      background: rgba(249, 115, 22, 0.12);
+      color: #fb923c;
+      border-color: rgba(249, 115, 22, 0.24);
+      box-shadow: none;
+    }
+  </style>
 </head>
 <body>
 <div class="app-layout">
   <aside class="sidebar">
     <div class="sidebar-header">
-        <div class="sidebar-logo">
+      <div class="sidebar-logo">
         <div class="logo-icon">CLN</div>
-        <div><h2><span class="emoji-sm">📊</span>CLN Lending Suite</h2><span>Admin Console</span></div>
+        <div>
+          <h2>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-bar-chart-2" style="vertical-align: middle; margin-right: 6px;"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>CLN Lending Suite
+          </h2>
+          <span>Admin Console</span>
+        </div>
       </div>
     </div>
     <nav class="sidebar-nav">
       <div class="nav-section">
         <div class="nav-section-title">Main</div>
-        <a href="/admin/dashboard.html?fresh=20260516d" class="nav-item"><span class="nav-icon emoji-sm">📊</span> Dashboard</a>
-        <a href="/admin/employees.html" class="nav-item active"><span class="nav-icon emoji-sm">👥</span> Employees</a>
-        <a href="/admin/customers.html" class="nav-item"><span class="nav-icon emoji-sm">📋</span> Customers</a>
-        <a href="/admin/loans.html" class="nav-item"><span class="nav-icon emoji-sm">💼</span> Loan Applications</a>
+        <a href="/admin/dashboard.html?fresh=20260516d" class="nav-item">
+          <span class="nav-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-activity"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+          </span> Dashboard
+        </a>
+        <a href="/admin/employees.html" class="nav-item active">
+          <span class="nav-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-users"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+          </span> Employees
+        </a>
+        <a href="/admin/customers.html" class="nav-item">
+          <span class="nav-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-user-check"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><polyline points="17 11 19 13 23 9"></polyline></svg>
+          </span> Customers
+        </a>
+        <a href="/admin/loans.html" class="nav-item">
+          <span class="nav-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-briefcase"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
+          </span> Loan Applications
+        </a>
+        <a href="/admin/emi-calculator.html" class="nav-item">
+          <span class="nav-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-percent"><line x1="19" y1="5" x2="5" y2="19"></line><circle cx="6.5" cy="6.5" r="2.5"></circle><circle cx="17.5" cy="17.5" r="2.5"></circle></svg>
+          </span> EMI Calculator
+        </a>
+
+        <a href="/admin/data-excel.html" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/></svg></span> Data Excel Document</a>
+        <a href="/admin/apr.html" class="nav-item">
+          <span class="nav-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          </span> APR
+        </a>
+
       </div>
     </nav>
     <div class="sidebar-footer">
@@ -44,42 +1225,316 @@
   <main class="main-content">
     <div class="topbar">
       <button class="mobile-menu-btn" onclick="toggleMobileSidebar()" title="Toggle menu">Menu</button>
-      <div class="topbar-title"><h2><span class="emoji">👥</span>Employees</h2><p>Manage platform users</p></div>
+      <div class="topbar-title">
+        <h2>
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-users" style="vertical-align: middle; margin-right: 8px; color: var(--accent-secondary);"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>Employees
+        </h2>
+        <p>Manage platform users</p>
+      </div>
       <div class="topbar-actions">
-        <button class="btn btn-primary btn-sm" onclick="openAddModal()"><span class="emoji-sm">➕</span>Add Employee</button>
+        <button class="btn btn-primary btn-sm" onclick="openAddModal()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="feather feather-plus" style="vertical-align: middle; margin-right: 6px;"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>Add Employee
+        </button>
       </div>
     </div>
 
     <div class="page-content">
       <div id="page-alert" class="alert"></div>
 
-      <!-- Search -->
-      <div class="filters-bar">
-        <div class="search-box" style="flex:1;">
-          <span class="search-icon">Search</span>
-          <input type="text" id="search-input" class="form-control" placeholder="Search by name or email..." oninput="renderTable()" style="width:100%;" />
+      <!-- Working Hours & System Status Card -->
+      <div class="card" style="margin-bottom: 24px;">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding: 16px 20px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-secondary" style="color: var(--accent-secondary);"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            <h3 style="font-size: 15px; font-weight: 700; margin: 0;">Employee Working Hours & System Status</h3>
+          </div>
+          <div id="working-hours-status-badge">
+            <span class="badge badge-inactive">Checking Status...</span>
+          </div>
         </div>
-        <select id="status-filter" onchange="renderTable()">
-          <option value="">All Status</option>
-          <option value="1">Active</option>
-          <option value="0">Inactive</option>
-        </select>
+        <div class="card-body" style="padding: 20px;">
+          <div class="working-hours-layout-grid">
+            
+            <!-- Left Side Settings Pane -->
+            <div class="settings-pane">
+              <div class="time-pickers-row">
+                <div class="time-picker-group">
+                  <label for="auto-activation-time">Start Time</label>
+                  <input type="time" id="auto-activation-time" class="form-control" />
+                </div>
+                <div class="time-picker-group">
+                  <label for="auto-deactivation-time">End Time</label>
+                  <input type="time" id="auto-deactivation-time" class="form-control" />
+                </div>
+              </div>
+              <button class="btn btn-primary" onclick="saveWorkingHours()" id="save-hours-btn" style="margin-top: 16px; width: 100%; height: 42px; display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                Save Hours
+              </button>
+            </div>
+            
+            <!-- Right Side Status Display Pane -->
+            <div class="status-display-pane">
+              <div class="status-display-card">
+                <div class="status-display-header">
+                  <span class="pulse-dot" id="live-status-dot"></span>
+                  <span class="status-text" id="live-status-text">Checking Hours...</span>
+                </div>
+                <div class="live-clock" id="live-clock-time">--:--:-- --</div>
+                <div class="live-clock-meta" id="live-clock-meta">Asia/Kolkata timezone</div>
+                <div class="current-schedule-info" id="current-schedule-display">
+                  Working Hours: --:-- - --:--
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
       </div>
 
+      <!-- Search & Filter Toolbar -->
+      <div class="toolbar-card">
+        <div class="toolbar-search-container">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="search-field-icon"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <input type="text" id="search-input" class="toolbar-search-input" placeholder="Search employees by name or email..." oninput="renderTable()" />
+        </div>
+        
+        <div class="toolbar-filters-container">
+          <div class="filter-dropdown-wrapper">
+            <label for="status-filter">Status</label>
+            <select id="status-filter" onchange="renderTable()" class="toolbar-select">
+              <option value="">All Statuses</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+              <option value="auto_deactivated">Auto-Deactivated</option>
+              <option value="override">Manual Override</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Employee Directory Table Card -->
       <div class="card full-table">
-        <div class="card-header">
-          <h3><span class="emoji-sm">👥</span>Employee List</h3>
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding: 16px 20px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-secondary" style="color: var(--accent-secondary);"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+            <h3 style="font-size: 15px; font-weight: 700; margin: 0;">Employee Directory</h3>
+          </div>
           <span id="count-badge" class="badge badge-employee">0 employees</span>
         </div>
         <div class="table-wrapper">
-          <table>
-            <thead><tr><th>#</th><th>Name</th><th>Email</th><th>Password</th><th>Phone</th><th>Status</th><th>Joined</th><th>Actions</th></tr></thead>
-            <tbody id="employees-tbody"><tr><td colspan="8" class="text-center text-muted">Loading...</td></tr></tbody>
+          <table class="employee-table">
+            <colgroup>
+              <col style="width: 6%;" />
+              <col style="width: 20%;" />
+              <col style="width: 28%;" />
+              <col style="width: 16%;" />
+              <col style="width: 14%;" />
+              <col style="width: 10%;" />
+              <col style="width: 6%;" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Joined</th>
+                <th>Status</th>
+                <th style="text-align: right; padding-right: 24px;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="employees-tbody">
+              <tr>
+                <td colspan="7" class="text-center text-muted" style="padding: 40px;">Loading directory...</td>
+              </tr>
+            </tbody>
           </table>
         </div>
       </div>
     </div>
   </main>
+</div>
+
+<!-- View Profile Modal -->
+<div class="modal-overlay" id="profile-modal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="profile-modal-title">
+    <svg class="profile-icon-sprite" aria-hidden="true" focusable="false">
+      <symbol id="profile-icon-x" viewBox="0 0 24 24"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></symbol>
+      <symbol id="profile-icon-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="m4 7 8 6 8-6"></path></symbol>
+      <symbol id="profile-icon-phone" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.4 19.4 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.77.62 2.61a2 2 0 0 1-.45 2.11L8.09 9.63a16 16 0 0 0 6.28 6.28l1.19-1.19a2 2 0 0 1 2.11-.45c.84.29 1.71.5 2.61.62A2 2 0 0 1 22 16.92Z"></path></symbol>
+      <symbol id="profile-icon-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M16 3v4"></path><path d="M8 3v4"></path><path d="M3 10h18"></path></symbol>
+      <symbol id="profile-icon-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"></path><path d="m9 12 2 2 4-5"></path></symbol>
+      <symbol id="profile-icon-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"></circle><path d="M5 20v-1a7 7 0 0 1 14 0v1"></path></symbol>
+      <symbol id="profile-icon-id-card" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"></rect><circle cx="9" cy="11" r="2"></circle><path d="M13 10h5"></path><path d="M13 14h4"></path><path d="M6 16c.6-1.2 1.6-2 3-2s2.4.8 3 2"></path></symbol>
+      <symbol id="profile-icon-file-text" viewBox="0 0 24 24"><path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v5h5"></path><path d="M9 13h6"></path><path d="M9 17h6"></path></symbol>
+      <symbol id="profile-icon-bank" viewBox="0 0 24 24"><path d="M4 10h16"></path><path d="M6 10V7l6-3 6 3v3"></path><path d="M5 20h14"></path><path d="M7 20v-7"></path><path d="M12 20v-7"></path><path d="M17 20v-7"></path></symbol>
+      <symbol id="profile-icon-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5"></path><path d="M12 16h.01"></path></symbol>
+      <symbol id="profile-icon-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 4v5h5"></path><path d="M12 7v5l3 2"></path></symbol>
+    </svg>
+    <div class="modal-header">
+      <div>
+        <p class="profile-kicker">Employee Directory</p>
+        <h3 id="profile-modal-title">Employee Profile</h3>
+      </div>
+      <button class="modal-close profile-close-btn" type="button" onclick="closeProfileModal()" aria-label="Close employee profile">
+        <span>Close</span>
+        <svg class="profile-icon"><use href="#profile-icon-x"></use></svg>
+      </button>
+    </div>
+
+    <div class="profile-modal-body">
+      <div id="profile-modal-alert" class="alert"></div>
+
+      <section class="profile-summary" aria-label="Employee summary">
+        <div class="profile-identity">
+          <div class="profile-avatar-large" id="prof-avatar">E</div>
+          <div class="profile-identity-main">
+            <h4 id="prof-name">—</h4>
+            <div class="profile-role-row">
+              <span class="profile-designation" id="prof-designation">—</span>
+              <span id="prof-kyc-status">—</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="profile-meta-grid">
+          <div class="profile-meta-item">
+            <svg class="profile-icon"><use href="#profile-icon-mail"></use></svg>
+            <div class="profile-meta-text"><label>Email</label><span id="prof-email">—</span></div>
+          </div>
+          <div class="profile-meta-item">
+            <svg class="profile-icon"><use href="#profile-icon-phone"></use></svg>
+            <div class="profile-meta-text"><label>Phone</label><span id="prof-phone">—</span></div>
+          </div>
+          <div class="profile-meta-item">
+            <svg class="profile-icon"><use href="#profile-icon-calendar"></use></svg>
+            <div class="profile-meta-text"><label>Joined</label><span id="prof-joined">—</span></div>
+          </div>
+        </div>
+      </section>
+
+      <div class="profile-content-shell">
+        <nav class="profile-tabs" aria-label="Employee profile sections" role="tablist">
+          <button class="profile-tab-btn active" type="button" data-profile-tab="personal" onclick="switchProfileTab('personal')" role="tab" aria-selected="true" aria-controls="prof-panel-personal">
+            <svg class="profile-icon"><use href="#profile-icon-user"></use></svg>
+            <span>Personal Details</span>
+          </button>
+          <button class="profile-tab-btn" type="button" data-profile-tab="kyc" onclick="switchProfileTab('kyc')" role="tab" aria-selected="false" aria-controls="prof-panel-kyc">
+            <svg class="profile-icon"><use href="#profile-icon-id-card"></use></svg>
+            <span>KYC Documents</span>
+          </button>
+          <button class="profile-tab-btn" type="button" data-profile-tab="bank" onclick="switchProfileTab('bank')" role="tab" aria-selected="false" aria-controls="prof-panel-bank">
+            <svg class="profile-icon"><use href="#profile-icon-bank"></use></svg>
+            <span>Bank Details</span>
+          </button>
+          <button class="profile-tab-btn" type="button" data-profile-tab="emergency" onclick="switchProfileTab('emergency')" role="tab" aria-selected="false" aria-controls="prof-panel-emergency">
+            <svg class="profile-icon"><use href="#profile-icon-alert"></use></svg>
+            <span>Emergency Contact</span>
+          </button>
+          <button class="profile-tab-btn" type="button" data-profile-tab="logs" onclick="switchProfileTab('logs')" role="tab" aria-selected="false" aria-controls="prof-panel-logs">
+            <svg class="profile-icon"><use href="#profile-icon-history"></use></svg>
+            <span>Logs & History</span>
+          </button>
+        </nav>
+
+        <div class="profile-panel-shell">
+          <div class="profile-tab-panel active" id="prof-panel-personal">
+            <div class="info-grid">
+              <div class="info-item"><label>Date of Birth</label><span id="prof-dob">—</span></div>
+              <div class="info-item"><label>Gender</label><span id="prof-gender">—</span></div>
+              <div class="info-item"><label>City</label><span id="prof-city">—</span></div>
+              <div class="info-item"><label>Postal Code</label><span id="prof-postal">—</span></div>
+              <div class="info-item profile-span-2"><label>Current Address</label><span id="prof-address">—</span></div>
+              <div class="info-item profile-span-2"><label>Permanent Address</label><span id="prof-perm-address">—</span></div>
+              <div class="info-item"><label>State</label><span id="prof-state">—</span></div>
+              <div class="info-item"><label>Country</label><span id="prof-country">—</span></div>
+            </div>
+          </div>
+
+          <div class="profile-tab-panel" id="prof-panel-kyc">
+            <div class="info-grid info-grid-2">
+              <div class="info-item"><label>Aadhaar Number</label><span id="prof-aadhaar-num">—</span></div>
+              <div class="info-item"><label>PAN Number</label><span id="prof-pan-num">—</span></div>
+            </div>
+
+            <div class="doc-preview-container">
+              <div class="doc-preview-card">
+                <p class="doc-preview-title">Aadhaar Front</p>
+                <div id="prof-aadhaar-front-wrap"></div>
+              </div>
+              <div class="doc-preview-card">
+                <p class="doc-preview-title">Aadhaar Back</p>
+                <div id="prof-aadhaar-back-wrap"></div>
+              </div>
+              <div class="doc-preview-card">
+                <p class="doc-preview-title">PAN Card</p>
+                <div id="prof-pan-card-wrap"></div>
+              </div>
+            </div>
+
+            <div class="verification-card">
+              <div class="verification-title">
+                <svg class="profile-icon"><use href="#profile-icon-shield"></use></svg>
+                <span>KYC Verification Decision</span>
+              </div>
+              <div class="form-group">
+                <label>Status</label>
+                <select id="prof-kyc-decision" class="form-control">
+                  <option value="Pending">Pending</option>
+                  <option value="Approved">Approved</option>
+                  <option value="Rejected">Rejected</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Remarks / Reason</label>
+                <textarea id="prof-kyc-remarks" class="form-control" placeholder="Enter remarks..."></textarea>
+              </div>
+              <div class="verification-actions">
+                <button class="btn btn-primary btn-sm" type="button" onclick="saveKycVerification()" id="verify-btn">Submit Verification</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="profile-tab-panel" id="prof-panel-bank">
+            <div class="info-grid">
+              <div class="info-item profile-span-2"><label>Account Holder Name</label><span id="prof-b-holder">—</span></div>
+              <div class="info-item"><label>Bank Name</label><span id="prof-b-bank">—</span></div>
+              <div class="info-item"><label>IFSC Code</label><span id="prof-b-ifsc">—</span></div>
+              <div class="info-item"><label>Account Number</label><span id="prof-b-account">—</span></div>
+              <div class="info-item"><label>Branch Name</label><span id="prof-b-branch">—</span></div>
+            </div>
+          </div>
+
+          <div class="profile-tab-panel" id="prof-panel-emergency">
+            <div class="info-grid">
+              <div class="info-item"><label>Contact Name</label><span id="prof-e-name">—</span></div>
+              <div class="info-item"><label>Relationship</label><span id="prof-e-relation">—</span></div>
+              <div class="info-item"><label>Mobile Number</label><span id="prof-e-mobile">—</span></div>
+              <div class="info-item"><label>Alternate Number</label><span id="prof-e-alt">—</span></div>
+            </div>
+          </div>
+
+          <div class="profile-tab-panel" id="prof-panel-logs">
+            <div class="log-section-grid">
+              <div>
+                <p class="log-section-title">Recent Activity Logs (Last 15)</p>
+                <div class="log-list" id="prof-activity-logs">
+                  <div class="text-muted text-center" style="font-size:12px; padding:12px;">No activity logs found.</div>
+                </div>
+              </div>
+              <div>
+                <p class="log-section-title">Recent Login History (Last 10)</p>
+                <div class="log-list" id="prof-login-history">
+                  <div class="text-muted text-center" style="font-size:12px; padding:12px;">No login history found.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- Add Employee Modal -->
@@ -105,21 +1560,42 @@
 <div class="modal-overlay" id="password-modal">
   <div class="modal">
     <div class="modal-header">
-      <h3>Reset Employee Password</h3>
-      <button class="modal-close" onclick="closePasswordModal()">Close</button>
+      <div class="password-title">
+        <div class="password-title-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+        </div>
+        <div>
+          <p class="password-kicker">Employee Access</p>
+          <h3>Reset Employee Password</h3>
+        </div>
+      </div>
+      <button class="modal-close password-close-btn" onclick="closePasswordModal()" aria-label="Close reset password modal">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
     </div>
-    <div id="password-modal-alert" class="alert"></div>
-    <div class="form-group">
-      <label>Employee</label>
-      <input type="text" id="password-employee-name" class="form-control" readonly />
-    </div>
-    <div class="form-group">
-      <label>New Password</label>
-      <input type="password" id="new-password" class="form-control" placeholder="Enter new password" />
-    </div>
-    <div class="modal-actions">
-      <button class="btn btn-secondary" onclick="closePasswordModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="saveEmployeePassword()" id="password-btn">Update Password</button>
+    <div class="password-modal-body">
+      <div id="password-modal-alert" class="alert"></div>
+      <div class="password-employee-card">
+        <div class="password-employee-avatar" id="password-employee-avatar">E</div>
+        <div class="password-employee-copy">
+          <label for="password-employee-name">Employee</label>
+          <input type="text" id="password-employee-name" class="form-control" readonly />
+        </div>
+      </div>
+      <div class="form-group password-reset-field">
+        <label for="new-password">New Password</label>
+        <div class="password-input-shell">
+          <input type="password" id="new-password" class="form-control" placeholder="Enter new password" autocomplete="new-password" />
+          <button type="button" class="password-toggle" id="password-visibility-toggle" onclick="toggleResetPasswordVisibility()" aria-label="Show password">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+        <div class="password-helper">Minimum 8 characters</div>
+      </div>
+      <div class="modal-actions password-actions">
+        <button class="btn btn-secondary" onclick="closePasswordModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveEmployeePassword()" id="password-btn">Update Password</button>
+      </div>
     </div>
   </div>
 </div>
@@ -129,8 +1605,9 @@
 <script>
   let allEmployees = [];
   let passwordEmployeeId = null;
+  let currentProfileEmployeeId = null;
   const user = requireRole('admin');
-  if (user) { renderSidebarUser(); loadEmployees(); }
+  if (user) { renderSidebarUser(); loadEmployees(); loadWorkingHours(); }
 
   async function loadEmployees() {
     const res = await api.get('/admin/employees');
@@ -144,31 +1621,311 @@
     const statusFilter = document.getElementById('status-filter').value;
     let list = allEmployees.filter(e => {
       const matchQ = !q || e.name.toLowerCase().includes(q) || e.email.toLowerCase().includes(q);
-      const matchS = statusFilter === '' || String(e.is_active) === statusFilter;
+      let matchS = false;
+      if (statusFilter === '') {
+        matchS = true;
+      } else if (statusFilter === 'active') {
+        matchS = e.is_active === 1 && e.manual_override === 0 && e.auto_deactivated === 0;
+      } else if (statusFilter === 'inactive') {
+        matchS = e.is_active === 0 && e.manual_override === 0 && e.auto_deactivated === 0;
+      } else if (statusFilter === 'auto_deactivated') {
+        matchS = e.auto_deactivated === 1;
+      } else if (statusFilter === 'override') {
+        matchS = e.manual_override === 1;
+      }
       return matchQ && matchS;
     });
     document.getElementById('count-badge').textContent = `${list.length} employees`;
     const tbody = document.getElementById('employees-tbody');
     if (!list.length) {
-      tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No employees found.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted" style="padding:40px;">No employees found matching the filters.</td></tr>';
       return;
     }
-    tbody.innerHTML = list.map((e, i) => `
+    tbody.innerHTML = list.map((e, i) => {
+      let statusBadge = '';
+      let actionDropdownItems = '';
+
+      if (e.manual_override === 1) {
+        statusBadge = '<span class="badge badge-override">Manual Override Active</span>';
+        actionDropdownItems = `
+          <button type="button" class="action-dropdown-item" onclick="toggleOverride(${e.id}, 0)">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
+            Remove Override
+          </button>
+          <button type="button" class="action-dropdown-item danger" onclick="toggleEmployee(${e.id}, 0)">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="9" x2="15" y2="15"></line><line x1="15" y1="9" x2="9" y2="15"></line></svg>
+            Deactivate Employee
+          </button>`;
+      } else if (e.auto_deactivated === 1) {
+        statusBadge = '<span class="badge badge-auto-deactivated">Auto-Deactivated</span>';
+        actionDropdownItems = `
+          <button type="button" class="action-dropdown-item" onclick="toggleOverride(${e.id}, 1)">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+            Activate Override
+          </button>
+          <button type="button" class="action-dropdown-item danger" onclick="toggleEmployee(${e.id}, 0)">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="9" x2="15" y2="15"></line><line x1="15" y1="9" x2="9" y2="15"></line></svg>
+            Deactivate Employee
+          </button>`;
+      } else if (e.is_active === 1) {
+        statusBadge = '<span class="badge badge-active">Active</span>';
+        actionDropdownItems = `
+          <button type="button" class="action-dropdown-item danger" onclick="toggleEmployee(${e.id}, 0)">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="9" x2="15" y2="15"></line><line x1="15" y1="9" x2="9" y2="15"></line></svg>
+            Deactivate Employee
+          </button>`;
+      } else {
+        statusBadge = '<span class="badge badge-inactive">Inactive</span>';
+        actionDropdownItems = `
+          <button type="button" class="action-dropdown-item" onclick="toggleEmployee(${e.id}, 1)">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+            Activate Employee
+          </button>`;
+      }
+
+      return `
       <tr>
-        <td>${i+1}</td>
-        <td>${e.name}</td>
-        <td>${e.email}</td>
-        <td>${e.password ? '********' : '—'}</td>
-        <td>${e.phone || '—'}</td>
-        <td><span class="badge ${e.is_active ? 'badge-active' : 'badge-inactive'}">${e.is_active ? 'Active' : 'Inactive'}</span></td>
+        <td style="font-weight:600;color:var(--text-muted);">${i+1}</td>
+        <td style="font-weight:600;color:var(--text-primary);">${escapeHtml(e.name)}</td>
+        <td>${escapeHtml(e.email)}</td>
+        <td>${escapeHtml(e.phone || '—')}</td>
         <td>${formatDate(e.created_at)}</td>
-        <td>
-          <button type="button" class="btn btn-secondary btn-sm" onclick='openPasswordModal(${e.id}, ${JSON.stringify(e.name)})'>Reset Password</button>
-          ${e.is_active
-            ? `<button type="button" class="btn btn-danger btn-sm" onclick="toggleEmployee(${e.id}, 0)">Deactivate</button>`
-            : `<button type="button" class="btn btn-success btn-sm" onclick="toggleEmployee(${e.id}, 1)">Activate</button>`}
+        <td>${statusBadge}</td>
+        <td style="text-align:right;padding-right:20px;position:relative;overflow:visible;">
+          <div class="dropdown-container">
+            <button type="button" class="btn-action-trigger" onclick="toggleDropdown(event,${e.id})" aria-label="Actions">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle></svg>
+            </button>
+            <div id="dropdown-${e.id}" class="action-dropdown-menu">
+              <button type="button" class="action-dropdown-item" onclick="openProfileModal(${e.id})">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                View Profile
+              </button>
+              <button type="button" class="action-dropdown-item" onclick='openPasswordModal(${e.id}, ${JSON.stringify(e.name)})'>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg>
+                Reset Password
+              </button>
+              <div style="height:1px;background:var(--border);margin:4px 0;"></div>
+              ${actionDropdownItems}
+            </div>
+          </div>
         </td>
-      </tr>`).join('');
+      </tr>`;
+    }).join('');
+  }
+
+  function toggleDropdown(event, id) {
+    event.stopPropagation();
+    document.querySelectorAll('.dropdown-container').forEach(c => {
+      const d = c.querySelector('.action-dropdown-menu');
+      if (d && d.id !== `dropdown-${id}`) c.classList.remove('open');
+    });
+    const container = event.target.closest('.dropdown-container');
+    if (container) container.classList.toggle('open');
+  }
+
+  function closeAllDropdowns() {
+    document.querySelectorAll('.dropdown-container').forEach(c => c.classList.remove('open'));
+  }
+
+  document.addEventListener('click', () => closeAllDropdowns());
+
+  // Profile Modal Logic
+  function switchProfileTab(name) {
+    document.querySelectorAll('#profile-modal .profile-tab-btn').forEach(t => {
+      t.classList.remove('active');
+      t.setAttribute('aria-selected', 'false');
+    });
+    document.querySelectorAll('#profile-modal .profile-tab-panel').forEach(p => p.classList.remove('active'));
+    const btn = document.querySelector(`#profile-modal .profile-tab-btn[data-profile-tab="${name}"]`);
+    if (btn) {
+      btn.classList.add('active');
+      btn.setAttribute('aria-selected', 'true');
+    }
+    const panel = document.getElementById(`prof-panel-${name}`);
+    if (panel) panel.classList.add('active');
+  }
+
+  function profileValue(value, fallback = '—') {
+    if (value === null || value === undefined) return fallback;
+    const text = String(value).trim();
+    return text || fallback;
+  }
+
+  function clearProfileAlert() {
+    const alert = document.getElementById('profile-modal-alert');
+    if (!alert) return;
+    alert.className = 'alert';
+    alert.textContent = '';
+  }
+
+  async function openProfileModal(id, options = {}) {
+    closeAllDropdowns();
+    currentProfileEmployeeId = id;
+    document.getElementById('profile-modal').classList.add('show');
+    switchProfileTab('personal');
+    if (!options.preserveAlert) clearProfileAlert();
+    
+    // Set loading placeholders
+    document.getElementById('prof-name').textContent = 'Loading...';
+    document.getElementById('prof-designation').textContent = '—';
+    document.getElementById('prof-email').textContent = '—';
+    document.getElementById('prof-phone').textContent = '—';
+    document.getElementById('prof-joined').textContent = '—';
+    document.getElementById('prof-kyc-status').textContent = '—';
+    document.getElementById('prof-avatar').textContent = 'E';
+    document.getElementById('prof-avatar').style.background = '';
+    
+    const res = await api.get(`/profile/admin/employees/${id}`);
+    if (!res?.ok) {
+      showAlert('profile-modal-alert', res?.data?.message || 'Failed to load employee profile.', 'error');
+      document.getElementById('prof-name').textContent = 'Error';
+      return;
+    }
+    
+    const { user: u, bank, emergency, activityLogs, loginHistory } = res.data.data;
+    const b = bank || {};
+    const e = emergency || {};
+    
+    // Summary
+    const employeeName = profileValue(u.name);
+    document.getElementById('prof-name').textContent = employeeName;
+    document.getElementById('prof-designation').textContent = profileValue(u.designation, 'Loan Executive');
+    document.getElementById('prof-email').textContent = profileValue(u.email);
+    document.getElementById('prof-phone').textContent = profileValue(u.phone);
+    
+    const joinedVal = u.joining_date ? formatDate(u.joining_date) : (u.created_at ? formatDate(u.created_at) : '—');
+    document.getElementById('prof-joined').textContent = joinedVal;
+    
+    // Avatar
+    const profAvatar = document.getElementById('prof-avatar');
+    if (u.profile_picture) {
+      profAvatar.innerHTML = `<img src="${escapeHtml(u.profile_picture)}" alt="avatar" />`;
+    } else {
+      profAvatar.innerHTML = escapeHtml(profileValue(u.name, 'Employee').charAt(0).toUpperCase());
+    }
+    
+    // KYC status badge
+    const kvsMap = { Pending: 'badge-pending', Approved: 'badge-approved', Rejected: 'badge-rejected' };
+    const kvs = profileValue(u.verification_status, 'Pending');
+    const badgeClass = kvsMap[kvs] || 'badge-pending';
+    document.getElementById('prof-kyc-status').innerHTML = `<span class="badge ${badgeClass}">${escapeHtml(kvs)}</span>`;
+    
+    // Personal Tab
+    document.getElementById('prof-dob').textContent = u.date_of_birth ? formatDate(u.date_of_birth) : '—';
+    document.getElementById('prof-gender').textContent = profileValue(u.gender);
+    document.getElementById('prof-city').textContent = profileValue(u.city);
+    document.getElementById('prof-postal').textContent = profileValue(u.postal_code);
+    document.getElementById('prof-address').textContent = profileValue(u.address);
+    document.getElementById('prof-perm-address').textContent = profileValue(u.permanent_address);
+    document.getElementById('prof-state').textContent = profileValue(u.state);
+    document.getElementById('prof-country').textContent = profileValue(u.country);
+    
+    // KYC Tab
+    document.getElementById('prof-aadhaar-num').textContent = profileValue(u.aadhaar_number);
+    document.getElementById('prof-pan-num').textContent = profileValue(u.pan_number);
+    
+    renderProfDocPreview('prof-aadhaar-front-wrap', u.aadhaar_front);
+    renderProfDocPreview('prof-aadhaar-back-wrap', u.aadhaar_back);
+    renderProfDocPreview('prof-pan-card-wrap', u.pan_card);
+    
+    // Verification controls
+    document.getElementById('prof-kyc-decision').value = kvs;
+    document.getElementById('prof-kyc-remarks').value = u.verification_remarks || '';
+    
+    // Bank Details
+    document.getElementById('prof-b-holder').textContent = profileValue(b.account_holder_name);
+    document.getElementById('prof-b-bank').textContent = profileValue(b.bank_name);
+    document.getElementById('prof-b-ifsc').textContent = profileValue(b.ifsc_code);
+    document.getElementById('prof-b-account').textContent = profileValue(b.account_number);
+    document.getElementById('prof-b-branch').textContent = profileValue(b.branch_name);
+    
+    // Emergency Contact
+    document.getElementById('prof-e-name').textContent = profileValue(e.contact_name);
+    document.getElementById('prof-e-relation').textContent = profileValue(e.relationship);
+    document.getElementById('prof-e-mobile').textContent = profileValue(e.mobile_number);
+    document.getElementById('prof-e-alt').textContent = profileValue(e.alternate_number);
+    
+    // Activity logs
+    const activityWrap = document.getElementById('prof-activity-logs');
+    if (activityLogs && activityLogs.length > 0) {
+      activityWrap.innerHTML = activityLogs.map(log => `
+        <div class="log-item">
+          <div><strong>${escapeHtml(profileValue(log.activity))}</strong></div>
+          <div class="log-meta">Status: ${escapeHtml(profileValue(log.status))} | IP: ${escapeHtml(profileValue(log.ip_address))} | ${log.created_at ? `${formatDate(log.created_at)} ${new Date(log.created_at).toLocaleTimeString('en-IN')}` : '—'}</div>
+        </div>
+      `).join('');
+    } else {
+      activityWrap.innerHTML = `<div class="text-muted text-center" style="font-size:12px; padding:12px;">No activity logs found.</div>`;
+    }
+    
+    // Login history
+    const loginWrap = document.getElementById('prof-login-history');
+    if (loginHistory && loginHistory.length > 0) {
+      loginWrap.innerHTML = loginHistory.map(log => `
+        <div class="log-item">
+          <div><strong>Login ${escapeHtml(profileValue(log.status))}</strong></div>
+          <div class="log-meta">Device: ${escapeHtml(profileValue(log.device))} | IP: ${escapeHtml(profileValue(log.ip_address))} | ${log.login_time ? `${formatDate(log.login_time)} ${new Date(log.login_time).toLocaleTimeString('en-IN')}` : '—'}</div>
+        </div>
+      `).join('');
+    } else {
+      loginWrap.innerHTML = `<div class="text-muted text-center" style="font-size:12px; padding:12px;">No login history found.</div>`;
+    }
+  }
+
+  function renderProfDocPreview(containerId, filePath) {
+    const container = document.getElementById(containerId);
+    if (!filePath) {
+      container.innerHTML = '<div class="doc-empty">—</div>';
+      return;
+    }
+    const safePath = escapeHtml(filePath);
+    const ext = filePath.split('.').pop().toLowerCase();
+    if (ext === 'pdf') {
+      container.innerHTML = `
+        <div class="pdf-placeholder"><svg class="profile-icon"><use href="#profile-icon-file-text"></use></svg></div>
+        <div><a href="${safePath}" target="_blank" class="doc-link">View PDF Document</a></div>
+      `;
+    } else {
+      container.innerHTML = `
+        <a href="${safePath}" target="_blank">
+          <img src="${safePath}" alt="KYC Document" />
+        </a>
+      `;
+    }
+  }
+
+  function closeProfileModal() {
+    currentProfileEmployeeId = null;
+    clearProfileAlert();
+    document.getElementById('profile-modal').classList.remove('show');
+  }
+
+  async function saveKycVerification() {
+    if (!currentProfileEmployeeId) return;
+    const status = document.getElementById('prof-kyc-decision').value;
+    const remarks = document.getElementById('prof-kyc-remarks').value;
+    
+    const btn = document.getElementById('verify-btn');
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+    
+    const res = await api.put(`/profile/admin/employees/${currentProfileEmployeeId}/verify`, {
+      verification_status: status,
+      verification_remarks: remarks
+    });
+    
+    btn.disabled = false;
+    btn.textContent = 'Submit Verification';
+    
+    if (res?.ok) {
+      const verifiedEmployeeId = currentProfileEmployeeId;
+      showAlert('profile-modal-alert', 'KYC verification submitted successfully!', 'success');
+      await openProfileModal(verifiedEmployeeId, { preserveAlert: true });
+      loadEmployees();
+    } else {
+      showAlert('profile-modal-alert', res?.data?.message || 'Failed to submit verification.', 'error');
+    }
   }
 
   function escapeHtml(value) {
@@ -181,7 +1938,16 @@
   }
 
   async function toggleEmployee(id, activate) {
+    closeAllDropdowns();
     const endpoint = activate ? `/admin/employees/${id}/activate` : `/admin/employees/${id}/deactivate`;
+    const res = await api.post(endpoint);
+    if (res?.ok) { showAlert('page-alert', res.data.message, 'success'); loadEmployees(); }
+    else showAlert('page-alert', res?.data?.message || 'Error', 'error');
+  }
+
+  async function toggleOverride(id, activate) {
+    closeAllDropdowns();
+    const endpoint = activate ? `/admin/employees/${id}/override` : `/admin/employees/${id}/remove-override`;
     const res = await api.post(endpoint);
     if (res?.ok) { showAlert('page-alert', res.data.message, 'success'); loadEmployees(); }
     else showAlert('page-alert', res?.data?.message || 'Error', 'error');
@@ -190,18 +1956,51 @@
   function openAddModal() { document.getElementById('add-modal').classList.add('show'); }
   function closeAddModal() { document.getElementById('add-modal').classList.remove('show'); }
 
+  function clearPasswordModalAlert() {
+    const alertEl = document.getElementById('password-modal-alert');
+    if (!alertEl) return;
+    alertEl.className = 'alert';
+    alertEl.textContent = '';
+  }
+
+  function resetPasswordVisibility() {
+    const input = document.getElementById('new-password');
+    const toggle = document.getElementById('password-visibility-toggle');
+    if (input) input.type = 'password';
+    if (toggle) {
+      toggle.classList.remove('visible');
+      toggle.setAttribute('aria-label', 'Show password');
+    }
+  }
+
+  function toggleResetPasswordVisibility() {
+    const input = document.getElementById('new-password');
+    const toggle = document.getElementById('password-visibility-toggle');
+    if (!input || !toggle) return;
+    const showPassword = input.type === 'password';
+    input.type = showPassword ? 'text' : 'password';
+    toggle.classList.toggle('visible', showPassword);
+    toggle.setAttribute('aria-label', showPassword ? 'Hide password' : 'Show password');
+    input.focus();
+  }
+
   function openPasswordModal(id, name) {
+    closeAllDropdowns();
     passwordEmployeeId = id;
     document.getElementById('password-employee-name').value = name;
     document.getElementById('new-password').value = '';
-    showAlert('password-modal-alert', '', 'success');
+    document.getElementById('password-employee-avatar').textContent = (name || 'E').trim().charAt(0).toUpperCase() || 'E';
+    resetPasswordVisibility();
+    clearPasswordModalAlert();
     document.getElementById('password-modal').classList.add('show');
+    setTimeout(() => document.getElementById('new-password')?.focus(), 80);
   }
 
   function closePasswordModal() {
     passwordEmployeeId = null;
     document.getElementById('password-modal').classList.remove('show');
-    showAlert('password-modal-alert', '', 'success');
+    clearPasswordModalAlert();
+    resetPasswordVisibility();
   }
 
   async function saveEmployeePassword() {
@@ -243,6 +2042,105 @@
       ['emp-name','emp-email','emp-phone','emp-password'].forEach(id => document.getElementById(id).value = '');
       loadEmployees();
     } else showAlert('modal-alert', res?.data?.message || 'Failed to add employee.', 'error');
+  }
+
+  async function loadWorkingHours() {
+    const res = await api.get('/admin/working-hours');
+    if (res?.ok && res.data) {
+      document.getElementById('auto-activation-time').value = res.data.auto_activation_time || '';
+      document.getElementById('auto-deactivation-time').value = res.data.auto_deactivation_time || '';
+      initLiveWorkingHoursStatus();
+    }
+  }
+
+  async function saveWorkingHours() {
+    const auto_activation_time = document.getElementById('auto-activation-time').value;
+    const auto_deactivation_time = document.getElementById('auto-deactivation-time').value;
+
+    if (!auto_activation_time || !auto_deactivation_time) {
+      return showAlert('page-alert', 'Please select both activation and deactivation times.', 'error');
+    }
+
+    const btn = document.getElementById('save-hours-btn');
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+
+    const res = await api.put('/admin/working-hours', {
+      auto_activation_time,
+      auto_deactivation_time
+    });
+
+    btn.disabled = false;
+    btn.textContent = 'Save Hours';
+
+    if (res?.ok) {
+      showAlert('page-alert', 'Working hours updated successfully!', 'success');
+      loadWorkingHours();
+    } else {
+      showAlert('page-alert', res?.data?.message || 'Failed to update working hours.', 'error');
+    }
+  }
+
+  // Live Working Hours Clock and Status Indicator
+  let workingHoursInterval = null;
+
+  function formatTime12h(timeStr) {
+    if (!timeStr) return 'N/A';
+    const [h, m] = timeStr.split(':');
+    const hour = parseInt(h, 10);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const displayHour = String(hour % 12 || 12).padStart(2, '0');
+    return `${displayHour}:${m} ${ampm}`;
+  }
+
+  function updateLiveWorkingHoursStatus() {
+    const startTimeStr = document.getElementById('auto-activation-time').value;
+    const endTimeStr = document.getElementById('auto-deactivation-time').value;
+
+    // Get current time in Asia/Kolkata
+    const now = new Date();
+    const options = { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true };
+    const timeStr = new Intl.DateTimeFormat('en-US', options).format(now);
+    const clockEl = document.getElementById('live-clock-time');
+    if (clockEl) clockEl.textContent = timeStr;
+
+    // Check if within business hours
+    const options24 = { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false };
+    const parts = new Intl.DateTimeFormat('en-US', options24).formatToParts(now);
+    const hour = parts.find(p => p.type === 'hour')?.value;
+    const minute = parts.find(p => p.type === 'minute')?.value;
+    const currentTime24 = `${hour}:${minute}`;
+
+    const dotEl = document.getElementById('live-status-dot');
+    const textEl = document.getElementById('live-status-text');
+    const badgeEl = document.getElementById('working-hours-status-badge');
+    const schedEl = document.getElementById('current-schedule-display');
+
+    if (!startTimeStr || !endTimeStr) {
+      if (dotEl) dotEl.className = 'pulse-dot inactive';
+      if (textEl) textEl.textContent = 'System Inactive';
+      if (badgeEl) badgeEl.innerHTML = '<span class="badge badge-inactive">Not Configured</span>';
+      if (schedEl) schedEl.textContent = 'Working Hours: Not Configured';
+      return;
+    }
+
+    if (badgeEl) badgeEl.innerHTML = '<span class="badge badge-active">Configured</span>';
+    if (schedEl) schedEl.textContent = `Working Hours: ${formatTime12h(startTimeStr)} – ${formatTime12h(endTimeStr)}`;
+
+    const isInside = currentTime24 >= startTimeStr && currentTime24 < endTimeStr;
+    if (isInside) {
+      if (dotEl) dotEl.className = 'pulse-dot';
+      if (textEl) textEl.textContent = 'Business Hours Active';
+    } else {
+      if (dotEl) dotEl.className = 'pulse-dot inactive';
+      if (textEl) textEl.textContent = 'Business Hours Ended';
+    }
+  }
+
+  function initLiveWorkingHoursStatus() {
+    updateLiveWorkingHoursStatus();
+    if (workingHoursInterval) clearInterval(workingHoursInterval);
+    workingHoursInterval = setInterval(updateLiveWorkingHoursStatus, 1000);
   }
 </script>
 </body>
